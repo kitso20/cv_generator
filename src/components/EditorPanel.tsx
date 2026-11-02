@@ -168,7 +168,22 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   };
 
   // Helper updates for personal details
-  const updatePersonal = (field: keyof typeof personal, value: string) => {
+  const normalizePersonalValue = (field: keyof typeof personal, value: string) => {
+    if (field === 'phone') {
+      const allowed = value.replace(/[^\d+()\-\s]/g, '');
+      return allowed.replace(/(?!^)\+/g, '').slice(0, 25);
+    }
+    if (field === 'email') {
+      return value.replace(/\s+/g, '').slice(0, 254);
+    }
+    if (field === 'website' || field === 'linkedin' || field === 'github') {
+      return value.replace(/\s+/g, '');
+    }
+    return value;
+  };
+
+  const updatePersonal = (field: keyof typeof personal, rawValue: string) => {
+    const value = normalizePersonalValue(field, rawValue);
     const newResume = {
       ...resume,
       lastModified: new Date().toISOString(),
@@ -1031,6 +1046,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       value={personal.fullName}
                       onChange={(e) => updatePersonal('fullName', e.target.value)}
                       placeholder="e.g. Alex Vance, M.Sc."
+                      autoComplete="name"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -1044,6 +1060,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       value={personal.jobTitle}
                       onChange={(e) => updatePersonal('jobTitle', e.target.value)}
                       placeholder="e.g. Lead Distributed Systems Architect"
+                      autoComplete="organization-title"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -1057,6 +1074,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       value={personal.email}
                       onChange={(e) => updatePersonal('email', e.target.value)}
                       placeholder="alex.vance@example.com"
+                      autoComplete="email"
+                      maxLength={254}
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -1070,8 +1089,16 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       value={personal.phone}
                       onChange={(e) => updatePersonal('phone', e.target.value)}
                       placeholder="+1 (555) 019-2834"
+                      autoComplete="tel"
+                      inputMode="tel"
+                      maxLength={25}
+                      pattern="[0-9+()\-\s]*"
+                      title="Use digits, spaces, +, -, and parentheses only."
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
+                    <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                      Digits, spaces, +, -, and parentheses only.
+                    </p>
                   </div>
 
                   <div>
@@ -1096,6 +1123,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       value={personal.website}
                       onChange={(e) => updatePersonal('website', e.target.value)}
                       placeholder="https://portfolio.dev"
+                      autoComplete="url"
+                      inputMode="url"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -1109,6 +1138,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       value={personal.linkedin}
                       onChange={(e) => updatePersonal('linkedin', e.target.value)}
                       placeholder="linkedin.com/in/alex-vance"
+                      autoComplete="url"
+                      inputMode="url"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -1122,6 +1153,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       value={personal.github}
                       onChange={(e) => updatePersonal('github', e.target.value)}
                       placeholder="github.com/alexvance"
+                      autoComplete="url"
+                      inputMode="url"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
