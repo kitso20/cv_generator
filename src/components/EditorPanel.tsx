@@ -174,8 +174,14 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       lastModified: new Date().toISOString(),
       personal: { ...personal, [field]: value },
     };
-    if (field === 'fullName' && (!resume.title || resume.title === 'My Resume')) {
-      newResume.title = value.trim() || 'My Resume';
+    if (field === 'fullName') {
+      const previousAutoTitle = resume.personal.fullName.trim() || 'My Resume';
+      const titleIsAutoManaged =
+        !resume.title || resume.title === 'My Resume' || resume.title === previousAutoTitle;
+
+      if (titleIsAutoManaged) {
+        newResume.title = value.trim() || 'My Resume';
+      }
     }
     onChange(newResume);
   };
