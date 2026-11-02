@@ -3,6 +3,7 @@ build/
 dist/
 server.js
 coverage/
+.data/
 .DS_Store
 *.log
 .env*
