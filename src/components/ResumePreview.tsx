@@ -20,6 +20,10 @@ import {
   FileText as FileDocIcon,
 } from 'lucide-react';
 import { ResumeData, COLOR_SCHEMES, FONT_OPTIONS, AttachedDocument } from '../types/resume';
+import {
+  withPreviewPlaceholders,
+  previewUsesPlaceholders,
+} from '../data/previewPlaceholders';
 
 interface ResumePreviewProps {
   resume: ResumeData;
@@ -35,7 +39,9 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
   const [selectedDocForView, setSelectedDocForView] = useState<AttachedDocument | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { personal, experience, education, skills, projects, certifications, customSections, sectionOrder, sectionVisibility, styles } = resume;
+  const showsPlaceholders = previewUsesPlaceholders(resume);
+  const displayResume = withPreviewPlaceholders(resume);
+  const { personal, experience, education, skills, projects, certifications, documents, customSections, sectionOrder, sectionVisibility, styles } = displayResume;
 
   const colorScheme = COLOR_SCHEMES[styles.colorPalette] || COLOR_SCHEMES.navy;
   const fontOption = FONT_OPTIONS[styles.fontFamily] || FONT_OPTIONS['modern-sans'];
@@ -380,7 +386,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
   };
 
   const renderDocumentsSection = () => {
-    const docs = resume.documents || [];
+    const docs = documents || [];
     if (docs.length === 0) return null;
 
     return (
@@ -678,6 +684,14 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
           <span className="hidden sm:inline text-slate-500 font-mono uppercase text-[11px]">
             {styles.paperSize} · {styles.template}
           </span>
+          {showsPlaceholders && (
+            <span
+              className="hidden md:inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+              title="Blank fields are filled with the example placeholder values from the editor."
+            >
+              Sample placeholders
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">
