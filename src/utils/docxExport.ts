@@ -21,21 +21,23 @@ export async function exportResumeToDocx(resume: ResumeData): Promise<void> {
   const children: Paragraph[] = [];
 
   // 1. Candidate Name Header
-  children.push(
-    new Paragraph({
-      alignment: styles.headerLayout === 'centered' ? AlignmentType.CENTER : AlignmentType.LEFT,
-      spacing: { after: 60 },
-      children: [
-        new TextRun({
-          text: personal.fullName || 'e.g. Alex Vance, M.Sc.',
-          bold: true,
-          size: 36, // 18pt
-          font: fontName,
-          color: primaryHex,
-        }),
-      ],
-    })
-  );
+  if (personal.fullName) {
+    children.push(
+      new Paragraph({
+        alignment: styles.headerLayout === 'centered' ? AlignmentType.CENTER : AlignmentType.LEFT,
+        spacing: { after: 60 },
+        children: [
+          new TextRun({
+            text: personal.fullName,
+            bold: true,
+            size: 36, // 18pt
+            font: fontName,
+            color: primaryHex,
+          }),
+        ],
+      })
+    );
+  }
 
   // Professional Title / Headline
   if (personal.jobTitle) {

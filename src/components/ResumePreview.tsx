@@ -532,15 +532,17 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
       <header className={`mb-6 pb-4 border-b border-slate-200 ${isCentered ? 'text-center' : 'text-left'}`}>
         <div className={`flex ${isCentered ? 'flex-col items-center' : 'flex-row items-center justify-between'} gap-4`}>
           <div>
-            <h1
-              className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900"
-              style={{
-                fontFamily: fontOption.fontFamilyCss,
-                color: styles.template === 'ats-classic' ? '#0F172A' : colorScheme.primary,
-              }}
-            >
-              {personal.fullName || 'e.g. Alex Vance, M.Sc.'}
-            </h1>
+            {personal.fullName && (
+              <h1
+                className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900"
+                style={{
+                  fontFamily: fontOption.fontFamilyCss,
+                  color: styles.template === 'ats-classic' ? '#0F172A' : colorScheme.primary,
+                }}
+              >
+                {personal.fullName}
+              </h1>
+            )}
             {personal.jobTitle && (
               <p className="text-sm sm:text-base font-medium text-slate-600 mt-0.5 tracking-wide">
                 {personal.jobTitle}
@@ -601,12 +603,16 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
         {/* Left Sidebar Column (33%) */}
         <div className="sm:w-1/3 border-b sm:border-b-0 sm:border-r border-slate-200 sm:pr-6 pb-6 sm:pb-0">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900" style={{ color: colorScheme.primary }}>
-              {personal.fullName || 'e.g. Alex Vance, M.Sc.'}
-            </h1>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">
-              {personal.jobTitle}
-            </p>
+            {personal.fullName && (
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900" style={{ color: colorScheme.primary }}>
+                {personal.fullName}
+              </h1>
+            )}
+            {personal.jobTitle && (
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">
+                {personal.jobTitle}
+              </p>
+            )}
           </div>
 
           <div className="mb-6">
