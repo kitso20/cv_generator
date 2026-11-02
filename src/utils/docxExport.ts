@@ -581,7 +581,7 @@ export async function exportResumeToDocx(resume: ResumeData): Promise<void> {
 
   // Pack blob and trigger download
   const blob = await Packer.toBlob(doc);
-  const fileName = `${personal.fullName.trim() || 'Candidate'}_Resume.docx`.replace(/\s+/g, '_');
+  const fileName = `${personal.fullName.trim() || 'Resume'}_Resume.docx`.replace(/\s+/g, '_');
 
   const downloadUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');

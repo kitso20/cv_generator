@@ -736,9 +736,10 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
       {/* Visual Canvas Backdrop */}
       <div
         ref={containerRef}
-        className="w-full overflow-x-auto flex justify-center py-4 px-2"
+        className="resume-canvas-backdrop w-full overflow-x-auto flex justify-center py-4 px-2"
       >
         <div
+          className="resume-scale-wrapper"
           style={{
             transform: `scale(${zoomLevel})`,
             transformOrigin: 'top center',

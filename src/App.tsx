@@ -172,7 +172,7 @@ export default function App() {
 
         {/* Right Column: Real-time Live Document Preview */}
         <div
-          className={`w-full lg:flex-1 flex flex-col items-center ${
+          className={`print-preview-column w-full lg:flex-1 flex flex-col items-center ${
             mobileView === 'preview' ? 'block' : 'hidden lg:block'
           }`}
         >

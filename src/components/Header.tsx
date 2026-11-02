@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { ResumeData } from '../types/resume';
+import { withPreviewPlaceholders } from '../data/previewPlaceholders';
 import { exportResumeToDocx } from '../utils/docxExport';
 import { downloadJsonFile } from '../utils/cloudSync';
 import { runAtsAudit } from '../utils/atsAuditor';
@@ -57,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
   const handleExportDocx = async () => {
     try {
       setIsExportingDocx(true);
-      await exportResumeToDocx(resume);
+      await exportResumeToDocx(withPreviewPlaceholders(resume));
     } catch (err) {
       console.error('Failed to export DOCX:', err);
     } finally {

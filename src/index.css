@@ -30,8 +30,10 @@
     size: A4 portrait;
     margin: 10mm 12mm 10mm 12mm;
   }
-  
+
+  html,
   body {
+    width: 100% !important;
     background: white !important;
     color: #111827 !important;
     margin: 0 !important;
@@ -39,16 +41,60 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .print-preview-column,
+  .resume-canvas-backdrop,
+  .resume-scale-wrapper,
+  #resume-document-container,
+  #resume-document-container * {
+    visibility: visible !important;
+  }
+
+  main {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  .print-preview-column {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .resume-canvas-backdrop {
+    display: block !important;
+    width: 100% !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .resume-scale-wrapper {
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
   .no-print {
     display: none !important;
   }
-  
+
   #resume-document-container {
     width: 100% !important;
     max-width: 100% !important;
     box-shadow: none !important;
     border: none !important;
+    border-radius: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     min-height: auto !important;
