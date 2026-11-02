@@ -1,0 +1,179 @@
+{
+  "CV-G59XP": {
+    "syncCode": "CV-G59XP",
+    "title": "My Resume",
+    "resumeData": {
+      "id": "resume-blank",
+      "title": "My Resume",
+      "lastModified": "2026-11-02T14:54:39.532Z",
+      "personal": {
+        "fullName": "Kitso Motlashuping",
+        "jobTitle": "data en",
+        "email": "motlashupingkitso@gmail.com",
+        "phone": "oihu",
+        "location": "",
+        "website": "",
+        "linkedin": "",
+        "github": "",
+        "summary": "",
+        "photoUrl": ""
+      },
+      "experience": [],
+      "education": [],
+      "skills": [],
+      "projects": [],
+      "certifications": [],
+      "documents": [],
+      "customSections": [],
+      "sectionOrder": [
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "projects",
+        "certifications",
+        "documents"
+      ],
+      "sectionVisibility": {
+        "summary": true,
+        "experience": true,
+        "education": true,
+        "skills": true,
+        "projects": true,
+        "certifications": true,
+        "documents": true
+      },
+      "styles": {
+        "template": "modern",
+        "colorPalette": "slate",
+        "fontFamily": "modern-sans",
+        "fontSize": "base",
+        "spacing": "standard",
+        "headerLayout": "left-aligned",
+        "showPhoto": false,
+        "paperSize": "a4",
+        "showDividers": true
+      }
+    },
+    "updatedAt": "2026-11-02T14:54:41.037Z",
+    "createdAt": "2026-11-02T14:54:21.834Z"
+  },
+  "CV-XXB3Q": {
+    "syncCode": "CV-XXB3Q",
+    "title": "Kitso Motlashuping",
+    "resumeData": {
+      "id": "resume-blank",
+      "title": "Kitso Motlashuping",
+      "lastModified": "2026-11-02T15:16:35.628Z",
+      "personal": {
+        "fullName": "Kitso Motlashuping",
+        "jobTitle": "",
+        "email": "motlashupingkitso@gmail.com",
+        "phone": "",
+        "location": "",
+        "website": "",
+        "linkedin": "",
+        "github": "",
+        "summary": "",
+        "photoUrl": ""
+      },
+      "experience": [],
+      "education": [],
+      "skills": [],
+      "projects": [],
+      "certifications": [],
+      "documents": [],
+      "customSections": [],
+      "sectionOrder": [
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "projects",
+        "certifications",
+        "documents"
+      ],
+      "sectionVisibility": {
+        "summary": true,
+        "experience": true,
+        "education": true,
+        "skills": true,
+        "projects": true,
+        "certifications": true,
+        "documents": true
+      },
+      "styles": {
+        "template": "modern",
+        "colorPalette": "slate",
+        "fontFamily": "modern-sans",
+        "fontSize": "base",
+        "spacing": "standard",
+        "headerLayout": "left-aligned",
+        "showPhoto": false,
+        "paperSize": "a4",
+        "showDividers": true
+      }
+    },
+    "updatedAt": "2026-11-02T15:17:15.737Z",
+    "createdAt": "2026-11-02T15:14:03.116Z"
+  },
+  "CV-YF6B8": {
+    "syncCode": "CV-YF6B8",
+    "title": "Kitso Motlashuping",
+    "resumeData": {
+      "id": "resume-blank",
+      "title": "Kitso Motlashuping",
+      "lastModified": "2026-11-02T15:29:51.905Z",
+      "personal": {
+        "fullName": "",
+        "jobTitle": "",
+        "email": "",
+        "phone": "",
+        "location": "",
+        "website": "",
+        "linkedin": "",
+        "github": "",
+        "summary": "",
+        "photoUrl": ""
+      },
+      "experience": [],
+      "education": [],
+      "skills": [],
+      "projects": [],
+      "certifications": [],
+      "documents": [],
+      "customSections": [],
+      "sectionOrder": [
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "projects",
+        "certifications",
+        "documents"
+      ],
+      "sectionVisibility": {
+        "summary": true,
+        "experience": true,
+        "education": true,
+        "skills": true,
+        "projects": true,
+        "certifications": true,
+        "documents": true
+      },
+      "styles": {
+        "template": "modern",
+        "colorPalette": "slate",
+        "fontFamily": "modern-sans",
+        "fontSize": "base",
+        "spacing": "standard",
+        "headerLayout": "left-aligned",
+        "showPhoto": false,
+        "paperSize": "a4",
+        "showDividers": true
+      }
+    },
+    "updatedAt": "2026-11-02T15:29:53.411Z",
+    "createdAt": "2026-11-02T15:27:20.001Z"
+  }
+}

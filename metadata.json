@@ -1,0 +1,6 @@
+{
+  "name": "CVForkt - Professional Resume & CV Generator",
+  "description": "ATS-compliant professional resume and CV generator with live preview, multi-template styling, drag-and-drop section arrangement, LinkedIn import, cloud sync, and PDF/DOCX exports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
