@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build",
+    "build": "vite build && npm run build:server",
+    "build:server": "esbuild server.ts --bundle --platform=node --target=node20 --format=esm --outfile=server.js --packages=external",
     "preview": "vite preview",
     "start": "tsx server.ts",
+    "start:prod": "node server.js",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
