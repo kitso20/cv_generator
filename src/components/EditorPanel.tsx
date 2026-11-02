@@ -413,7 +413,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         id: newId,
         company: addExpData.company.trim() || 'Company Name',
         position: addExpData.position.trim() || 'Role / Position',
-        location: addExpData.location.trim() || 'San Francisco, CA',
+        location: addExpData.location.trim() || 'Sandton, Johannesburg',
         startDate: addExpData.startDate.trim() || '2023-01',
         endDate: addExpData.endDate.trim() || '',
         current: addExpData.current,
@@ -447,8 +447,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       const newEdu: Education = {
         id: newId,
         institution: addEduData.institution.trim() || 'University Name',
-        degree: addEduData.degree.trim() || 'Bachelor of Science',
-        fieldOfStudy: addEduData.fieldOfStudy.trim() || 'Computer Science',
+        degree: addEduData.degree.trim() || 'Bachelor of Commerce',
+        fieldOfStudy: addEduData.fieldOfStudy.trim() || 'Business Management',
         location: addEduData.location.trim(),
         startDate: addEduData.startDate.trim() || '2019',
         endDate: addEduData.endDate.trim() || '2023',
@@ -479,7 +479,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       targetSubTab = 'skills';
       const parsedSkills = addSkillData.skillsString
         ? addSkillData.skillsString.split(',').map((s) => s.trim()).filter(Boolean)
-        : ['JavaScript', 'TypeScript', 'Node.js'];
+        : ['Supply Chain Planning', 'Budgeting & Cost Control', 'Team Leadership'];
 
       const newSkill: SkillCategory = {
         id: newId,
@@ -500,7 +500,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       targetSubTab = 'projects';
       const bullets = addProjData.bullet1.trim()
         ? [addProjData.bullet1.trim()]
-        : ['Designed and deployed application serving 10,000+ active users.'];
+        : ['Reduced annual operating costs by R4.2 million through route and supplier improvements.'];
       const tags = addProjData.technologies
         ? addProjData.technologies.split(',').map((t) => t.trim()).filter(Boolean)
         : [];
@@ -508,8 +508,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       const newProj: Project = {
         id: newId,
         title: addProjData.title.trim() || 'New Project Title',
-        role: addProjData.role.trim() || 'Lead Developer',
-        description: addProjData.description.trim() || 'A high-throughput application resolving core workflow bottlenecks.',
+        role: addProjData.role.trim() || 'Project Lead',
+        description: addProjData.description.trim() || 'A process improvement project focused on reducing delivery costs and delays.',
         highlights: bullets,
         technologies: tags,
         link: addProjData.link.trim(),
@@ -1045,7 +1045,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={personal.fullName}
                       onChange={(e) => updatePersonal('fullName', e.target.value)}
-                      placeholder="e.g. Alex Vance, M.Sc."
+                      placeholder="e.g. Naledi Khumalo"
                       autoComplete="name"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
@@ -1059,7 +1059,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={personal.jobTitle}
                       onChange={(e) => updatePersonal('jobTitle', e.target.value)}
-                      placeholder="e.g. Lead Distributed Systems Architect"
+                      placeholder="e.g. Senior Operations Manager"
                       autoComplete="organization-title"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
@@ -1073,7 +1073,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="email"
                       value={personal.email}
                       onChange={(e) => updatePersonal('email', e.target.value)}
-                      placeholder="alex.vance@example.com"
+                      placeholder="naledi.khumalo@example.co.za"
                       autoComplete="email"
                       maxLength={254}
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
@@ -1088,7 +1088,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="tel"
                       value={personal.phone}
                       onChange={(e) => updatePersonal('phone', e.target.value)}
-                      placeholder="+1 (555) 019-2834"
+                      placeholder="+27 82 456 7890"
                       autoComplete="tel"
                       inputMode="tel"
                       maxLength={25}
@@ -1109,7 +1109,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={personal.location}
                       onChange={(e) => updatePersonal('location', e.target.value)}
-                      placeholder="San Francisco, CA (Hybrid / Remote)"
+                      placeholder="Sandton, Johannesburg (Hybrid)"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -1122,7 +1122,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={personal.website}
                       onChange={(e) => updatePersonal('website', e.target.value)}
-                      placeholder="https://portfolio.dev"
+                      placeholder="https://naledikhumalo.co.za"
                       autoComplete="url"
                       inputMode="url"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
@@ -1137,7 +1137,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={personal.linkedin}
                       onChange={(e) => updatePersonal('linkedin', e.target.value)}
-                      placeholder="linkedin.com/in/alex-vance"
+                      placeholder="linkedin.com/in/naledi-khumalo"
                       autoComplete="url"
                       inputMode="url"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
@@ -1152,7 +1152,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={personal.github}
                       onChange={(e) => updatePersonal('github', e.target.value)}
-                      placeholder="github.com/alexvance"
+                      placeholder="e.g. github.com/naledikhumalo"
                       autoComplete="url"
                       inputMode="url"
                       className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
@@ -1294,7 +1294,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           type="text"
                           value={job.location}
                           onChange={(e) => updateExperience(job.id, { location: e.target.value })}
-                          placeholder="e.g. San Francisco, CA / Remote"
+                          placeholder="e.g. Sandton, Johannesburg / Hybrid"
                           className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                         />
                       </div>
@@ -1398,7 +1398,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           const tags = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
                           updateExperience(job.id, { technologies: tags });
                         }}
-                        placeholder="e.g. Go, Kubernetes, TypeScript, AWS"
+                        placeholder="e.g. SAP, Power BI, Microsoft Excel"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -1459,7 +1459,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           type="text"
                           value={edu.degree}
                           onChange={(e) => updateEducation(edu.id, { degree: e.target.value })}
-                          placeholder="e.g. Master of Science, Computer Science"
+                          placeholder="e.g. Bachelor of Commerce (Honours), Business Management"
                           className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                         />
                       </div>
@@ -1483,7 +1483,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           type="text"
                           value={edu.honors || ''}
                           onChange={(e) => updateEducation(edu.id, { honors: e.target.value })}
-                          placeholder="e.g. GPA: 3.9 / 4.0, Magna Cum Laude"
+                          placeholder="e.g. 75% average, Dean's List"
                           className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                         />
                       </div>
@@ -1599,7 +1599,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           type="text"
                           value={proj.role || ''}
                           onChange={(e) => updateProject(proj.id, { role: e.target.value })}
-                          placeholder="e.g. Creator & Maintainer"
+                          placeholder="e.g. Project Lead"
                           className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                         />
                       </div>
@@ -1693,7 +1693,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           type="text"
                           value={cert.issuer}
                           onChange={(e) => updateCertification(cert.id, { issuer: e.target.value })}
-                          placeholder="e.g. Amazon Web Services"
+                          placeholder="e.g. Project Management Institute"
                           className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                         />
                       </div>
@@ -1703,7 +1703,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           type="text"
                           value={cert.issueDate}
                           onChange={(e) => updateCertification(cert.id, { issueDate: e.target.value })}
-                          placeholder="e.g. 2023-08"
+                          placeholder="e.g. 2022-05"
                           className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                         />
                       </div>
@@ -1789,7 +1789,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                             type="text"
                             value={doc.title}
                             onChange={(e) => updateDocument(doc.id, { title: e.target.value })}
-                            placeholder="e.g. Certified ID Copy / Passport or Master of Science Diploma"
+                            placeholder="e.g. Certified ID Copy or Bachelor of Commerce Certificate"
                             className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                           />
                         </div>
@@ -1823,7 +1823,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                             type="text"
                             value={doc.documentNumber || ''}
                             onChange={(e) => updateDocument(doc.id, { documentNumber: e.target.value })}
-                            placeholder="e.g. ID-US-9482019-V"
+                            placeholder="e.g. SA-ID-8801015800083"
                             className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
                           />
                         </div>
@@ -1835,7 +1835,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                             type="text"
                             value={doc.issuer || ''}
                             onChange={(e) => updateDocument(doc.id, { issuer: e.target.value })}
-                            placeholder="e.g. Dept of Home Affairs / MIT"
+                            placeholder="e.g. Department of Home Affairs / University of the Witwatersrand"
                             className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                           />
                         </div>
@@ -1847,7 +1847,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                             type="text"
                             value={doc.issueDate || ''}
                             onChange={(e) => updateDocument(doc.id, { issueDate: e.target.value })}
-                            placeholder="e.g. 2023-08"
+                            placeholder="e.g. 2024-02"
                             className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                           />
                         </div>
@@ -2512,7 +2512,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         required
                         value={addExpData.company}
                         onChange={(e) => setAddExpData({ ...addExpData, company: e.target.value })}
-                        placeholder="e.g. Acme Cloud Corp"
+                        placeholder="e.g. Massmart"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2525,7 +2525,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         required
                         value={addExpData.position}
                         onChange={(e) => setAddExpData({ ...addExpData, position: e.target.value })}
-                        placeholder="e.g. Senior Software Architect"
+                        placeholder="e.g. Senior Operations Manager"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2540,7 +2540,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addExpData.location}
                         onChange={(e) => setAddExpData({ ...addExpData, location: e.target.value })}
-                        placeholder="e.g. San Francisco, CA"
+                        placeholder="e.g. Sandton, Johannesburg"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2592,7 +2592,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       rows={2}
                       value={addExpData.bullet1}
                       onChange={(e) => setAddExpData({ ...addExpData, bullet1: e.target.value })}
-                      placeholder="e.g. Spearheaded infrastructure overhaul, reducing compute latency by 35% and saving $450k annually."
+                      placeholder="e.g. Managed a 120-person team across 14 stores, lifting on-time stock replenishment from 82% to 96%."
                       className="w-full text-xs p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2605,7 +2605,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={addExpData.technologies}
                       onChange={(e) => setAddExpData({ ...addExpData, technologies: e.target.value })}
-                      placeholder="e.g. TypeScript, React, Docker, PostgreSQL"
+                      placeholder="e.g. SAP, Power BI, Microsoft Excel"
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2624,7 +2624,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       required
                       value={addEduData.institution}
                       onChange={(e) => setAddEduData({ ...addEduData, institution: e.target.value })}
-                      placeholder="e.g. University of California, Berkeley"
+                      placeholder="e.g. University of the Witwatersrand"
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2639,7 +2639,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         required
                         value={addEduData.degree}
                         onChange={(e) => setAddEduData({ ...addEduData, degree: e.target.value })}
-                        placeholder="e.g. Bachelor of Science"
+                        placeholder="e.g. Bachelor of Commerce (Honours)"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2651,7 +2651,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addEduData.fieldOfStudy}
                         onChange={(e) => setAddEduData({ ...addEduData, fieldOfStudy: e.target.value })}
-                        placeholder="e.g. Computer Science"
+                        placeholder="e.g. Business Management"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2666,7 +2666,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addEduData.endDate}
                         onChange={(e) => setAddEduData({ ...addEduData, endDate: e.target.value })}
-                        placeholder="e.g. 2018 - 2022"
+                        placeholder="e.g. 2014 - 2015"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2678,7 +2678,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addEduData.honors}
                         onChange={(e) => setAddEduData({ ...addEduData, honors: e.target.value })}
-                        placeholder="e.g. Magna Cum Laude, GPA 3.9"
+                        placeholder="e.g. Dean's List, 75% average"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2698,7 +2698,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       required
                       value={addSkillData.categoryName}
                       onChange={(e) => setAddSkillData({ ...addSkillData, categoryName: e.target.value })}
-                      placeholder="e.g. Cloud & DevOps, Languages, Leadership"
+                      placeholder="e.g. Operations, People Leadership, Business Systems"
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2711,7 +2711,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       required
                       value={addSkillData.skillsString}
                       onChange={(e) => setAddSkillData({ ...addSkillData, skillsString: e.target.value })}
-                      placeholder="e.g. Docker, Kubernetes, Terraform, AWS, Prometheus, Helm"
+                      placeholder="e.g. Supply Chain Planning, SAP, Budgeting, Lean Six Sigma"
                       className="w-full text-xs p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2731,7 +2731,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         required
                         value={addProjData.title}
                         onChange={(e) => setAddProjData({ ...addProjData, title: e.target.value })}
-                        placeholder="e.g. StreamForge Message Queue"
+                        placeholder="e.g. National Distribution Route Redesign"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2743,7 +2743,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addProjData.role}
                         onChange={(e) => setAddProjData({ ...addProjData, role: e.target.value })}
-                        placeholder="e.g. Lead Maintainer"
+                        placeholder="e.g. Project Lead"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2770,7 +2770,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       rows={2}
                       value={addProjData.bullet1}
                       onChange={(e) => setAddProjData({ ...addProjData, bullet1: e.target.value })}
-                      placeholder="e.g. Handled 350,000 msgs/sec throughput, adopted by 8 enterprise fintech clients."
+                      placeholder="e.g. Saved R4.2 million in annual fuel and overtime costs."
                       className="w-full text-xs p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2789,7 +2789,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       required
                       value={addCertData.name}
                       onChange={(e) => setAddCertData({ ...addCertData, name: e.target.value })}
-                      placeholder="e.g. AWS Certified Solutions Architect Professional"
+                      placeholder="e.g. Project Management Professional (PMP)"
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2802,7 +2802,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addCertData.issuer}
                         onChange={(e) => setAddCertData({ ...addCertData, issuer: e.target.value })}
-                        placeholder="e.g. Amazon Web Services"
+                        placeholder="e.g. Project Management Institute"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2814,7 +2814,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addCertData.issueDate}
                         onChange={(e) => setAddCertData({ ...addCertData, issueDate: e.target.value })}
-                        placeholder="e.g. 2023-09"
+                        placeholder="e.g. 2022-05"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2834,7 +2834,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       required
                       value={addDocData.title}
                       onChange={(e) => setAddDocData({ ...addDocData, title: e.target.value })}
-                      placeholder="e.g. Certified ID Copy / Passport or Master of Science Diploma"
+                      placeholder="e.g. Certified ID Copy or Bachelor of Commerce Certificate"
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2867,7 +2867,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addDocData.documentNumber}
                         onChange={(e) => setAddDocData({ ...addDocData, documentNumber: e.target.value })}
-                        placeholder="e.g. US-PASSPORT-482019"
+                        placeholder="e.g. SA-ID-8801015800083"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
                       />
                     </div>
@@ -2882,7 +2882,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addDocData.issuer}
                         onChange={(e) => setAddDocData({ ...addDocData, issuer: e.target.value })}
-                        placeholder="e.g. Dept of State / Stanford University"
+                        placeholder="e.g. Department of Home Affairs / University of the Witwatersrand"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -2967,7 +2967,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       required
                       value={addCustomData.sectionTitle}
                       onChange={(e) => setAddCustomData({ ...addCustomData, sectionTitle: e.target.value })}
-                      placeholder="e.g. Publications, Volunteer Work, Patents"
+                      placeholder="e.g. Volunteer Work, Languages, Memberships"
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2980,7 +2980,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       required
                       value={addCustomData.itemTitle}
                       onChange={(e) => setAddCustomData({ ...addCustomData, itemTitle: e.target.value })}
-                      placeholder="e.g. High-Throughput Event Log Verification"
+                      placeholder="e.g. Community Financial Literacy Workshop"
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2993,7 +2993,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={addCustomData.itemSubtitle}
                         onChange={(e) => setAddCustomData({ ...addCustomData, itemSubtitle: e.target.value })}
-                        placeholder="e.g. IEEE Transactions on Cloud"
+                        placeholder="e.g. Ikageng Community Centre"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>

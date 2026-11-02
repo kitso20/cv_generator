@@ -179,7 +179,7 @@ export const LinkedInImportModal: React.FC<LinkedInImportModalProps> = ({
                 rows={8}
                 value={rawText}
                 onChange={(e) => handleParse(e.target.value)}
-                placeholder="Paste your LinkedIn profile text here...&#10;&#10;e.g.&#10;Alex Vance&#10;Lead Distributed Systems Architect&#10;San Francisco, California&#10;alex.vance@example.com&#10;&#10;Experience&#10;Senior Cloud Architect&#10;Datavane Systems · March 2022 - Present..."
+                placeholder="Paste your LinkedIn profile text here...&#10;&#10;e.g.&#10;Naledi Khumalo&#10;Senior Operations Manager&#10;Sandton, Johannesburg&#10;naledi.khumalo@example.co.za&#10;&#10;Experience&#10;Operations Manager&#10;The Courier Guy · July 2016 - February 2021..."
                 className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white focus:outline-none focus:border-[#0A66C2] font-mono leading-relaxed"
               />
             </div>

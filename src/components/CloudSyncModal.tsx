@@ -288,7 +288,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                     type="text"
                     value={backupLabel}
                     onChange={(e) => setBackupLabel(e.target.value)}
-                    placeholder="Label (e.g. Before tech interview revision)"
+                    placeholder="Label (e.g. Before final review)"
                     className="flex-1 text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                   />
                   <button
