@@ -161,54 +161,48 @@ export const PREVIEW_PLACEHOLDER_CONTENT: PreviewContent = {
   ],
 };
 
+export function hasUserContent(resume: ResumeData): boolean {
+  const personal = resume.personal;
+
+  return Boolean(
+    personal.fullName.trim() ||
+      personal.jobTitle.trim() ||
+      personal.email.trim() ||
+      personal.phone.trim() ||
+      personal.location.trim() ||
+      personal.website.trim() ||
+      personal.linkedin.trim() ||
+      personal.github.trim() ||
+      personal.summary.trim() ||
+      resume.experience.length > 0 ||
+      resume.education.length > 0 ||
+      resume.skills.length > 0 ||
+      resume.projects.length > 0 ||
+      resume.certifications.length > 0 ||
+      (resume.documents && resume.documents.length > 0) ||
+      resume.customSections.length > 0
+  );
+}
+
 export function withPreviewPlaceholders(resume: ResumeData): ResumeData {
+  if (hasUserContent(resume)) {
+    return resume;
+  }
+
   const fallback = PREVIEW_PLACEHOLDER_CONTENT;
 
   return {
     ...resume,
-    personal: {
-      ...resume.personal,
-      fullName: resume.personal.fullName || fallback.personal.fullName,
-      jobTitle: resume.personal.jobTitle || fallback.personal.jobTitle,
-      email: resume.personal.email || fallback.personal.email,
-      phone: resume.personal.phone || fallback.personal.phone,
-      location: resume.personal.location || fallback.personal.location,
-      website: resume.personal.website || fallback.personal.website,
-      linkedin: resume.personal.linkedin || fallback.personal.linkedin,
-      github: resume.personal.github || fallback.personal.github,
-      summary: resume.personal.summary || fallback.personal.summary,
-      photoUrl: resume.personal.photoUrl,
-    },
-    experience: resume.experience.length > 0 ? resume.experience : fallback.experience,
-    education: resume.education.length > 0 ? resume.education : fallback.education,
-    skills: resume.skills.length > 0 ? resume.skills : fallback.skills,
-    projects: resume.projects.length > 0 ? resume.projects : fallback.projects,
-    certifications: resume.certifications.length > 0 ? resume.certifications : fallback.certifications,
-    documents: resume.documents && resume.documents.length > 0 ? resume.documents : fallback.documents,
+    personal: { ...fallback.personal },
+    experience: fallback.experience,
+    education: fallback.education,
+    skills: fallback.skills,
+    projects: fallback.projects,
+    certifications: fallback.certifications,
+    documents: fallback.documents,
   };
 }
 
 export function previewUsesPlaceholders(resume: ResumeData): boolean {
-  const personalFields = [
-    resume.personal.fullName,
-    resume.personal.jobTitle,
-    resume.personal.email,
-    resume.personal.phone,
-    resume.personal.location,
-    resume.personal.website,
-    resume.personal.linkedin,
-    resume.personal.github,
-    resume.personal.summary,
-  ];
-
-  return (
-    personalFields.some((value) => !value) ||
-    resume.experience.length === 0 ||
-    resume.education.length === 0 ||
-    resume.skills.length === 0 ||
-    resume.projects.length === 0 ||
-    resume.certifications.length === 0 ||
-    !resume.documents ||
-    resume.documents.length === 0
-  );
+  return !hasUserContent(resume);
 }
