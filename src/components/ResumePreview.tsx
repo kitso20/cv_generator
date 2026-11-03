@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Mail,
   Phone,
@@ -36,8 +36,32 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
   scale: externalScale,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(externalScale || 1.0);
+  const [fitScale, setFitScale] = useState<number>(1);
   const [selectedDocForView, setSelectedDocForView] = useState<AttachedDocument | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Fit the A4 canvas to the available width on phones and smaller laptops.
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateFit = () => {
+      const availableWidth = Math.max(280, element.clientWidth - 24);
+      setFitScale(Math.min(1, availableWidth / 794));
+    };
+
+    updateFit();
+    const observer = new ResizeObserver(updateFit);
+    observer.observe(element);
+    window.addEventListener('resize', updateFit);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateFit);
+    };
+  }, []);
+
+  const effectiveScale = Math.min(1.4, Math.max(0.28, zoomLevel * fitScale));
 
   const showsPlaceholders = previewUsesPlaceholders(resume);
   const displayResume = withPreviewPlaceholders(resume);
@@ -314,7 +338,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
                       href={proj.link}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs text-blue-600 hover:underline flex items-center gap-0.5"
+                      className="text-xs text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-500 hover:decoration-blue-400 active:text-blue-400 flex items-center gap-0.5"
                     >
                       <ExternalLink className="w-3 h-3" />
                     </a>
@@ -432,7 +456,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedDocForView(doc)}
-                  className="no-print text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 cursor-pointer"
+                  className="no-print text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-500 hover:decoration-blue-400 active:text-blue-400 font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <Eye className="w-3 h-3" />
                   <span>View Doc</span>
@@ -481,7 +505,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
         {personal.email && (
           <span className="flex items-center gap-1">
             <Mail className="w-3 h-3 text-slate-400 shrink-0" />
-            <a href={`mailto:${personal.email}`} className="hover:underline">{personal.email}</a>
+            <a href={`mailto:${personal.email}`} className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-500 hover:decoration-blue-400 active:text-blue-400">{personal.email}</a>
           </span>
         )}
         {personal.phone && (
@@ -499,7 +523,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
         {personal.website && (
           <span className="flex items-center gap-1">
             <Globe className="w-3 h-3 text-slate-400 shrink-0" />
-            <a href={personal.website} target="_blank" rel="noreferrer" className="hover:underline">
+            <a href={personal.website} target="_blank" rel="noreferrer" className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-500 hover:decoration-blue-400 active:text-blue-400">
               {personal.website.replace(/^https?:\/\//, '')}
             </a>
           </span>
@@ -507,7 +531,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
         {personal.linkedin && (
           <span className="flex items-center gap-1">
             <Linkedin className="w-3 h-3 text-slate-400 shrink-0" />
-            <a href={`https://${personal.linkedin.replace(/^https?:\/\//, '')}`} target="_blank" rel="noreferrer" className="hover:underline">
+            <a href={`https://${personal.linkedin.replace(/^https?:\/\//, '')}`} target="_blank" rel="noreferrer" className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-500 hover:decoration-blue-400 active:text-blue-400">
               {personal.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/')}
             </a>
           </span>
@@ -515,7 +539,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
         {personal.github && (
           <span className="flex items-center gap-1">
             <Github className="w-3 h-3 text-slate-400 shrink-0" />
-            <a href={`https://${personal.github.replace(/^https?:\/\//, '')}`} target="_blank" rel="noreferrer" className="hover:underline">
+            <a href={`https://${personal.github.replace(/^https?:\/\//, '')}`} target="_blank" rel="noreferrer" className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-500 hover:decoration-blue-400 active:text-blue-400">
               {personal.github.replace(/^https?:\/\/(www\.)?github\.com\//, '')}
             </a>
           </span>
@@ -710,7 +734,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
           <span className="font-mono text-[11px] w-12 text-center text-slate-700 dark:text-slate-300">
-            {Math.round(zoomLevel * 100)}%
+            {Math.round(effectiveScale * 100)}%
           </span>
           <button
             onClick={() => setZoomLevel((z) => Math.min(1.4, z + 0.1))}
@@ -723,9 +747,9 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
           <button
             onClick={() => setZoomLevel(1.0)}
             className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 cursor-pointer text-[11px] font-medium"
-            title="Reset Zoom (100%)"
+            title="Fit the page to the available width"
           >
-            100%
+            Fit
           </button>
           <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1" />
           <button
@@ -747,29 +771,34 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
         <div
           className="resume-scale-wrapper"
           style={{
-            transform: `scale(${zoomLevel})`,
-            transformOrigin: 'top center',
-            transition: 'transform 0.15s ease-out',
+            zoom: effectiveScale,
           }}
         >
           {/* Printable White Resume Canvas */}
           <div
             id="resume-document-container"
-            className={`bg-white text-slate-900 shadow-xl border border-slate-200/90 rounded-sm relative selection:bg-blue-100 selection:text-blue-900 ${densityStyles.padding}`}
+            className={`bg-white text-slate-900 shadow-xl border border-slate-200/90 rounded-sm relative flex flex-col selection:bg-blue-100 selection:text-blue-900 ${densityStyles.padding}`}
             style={{
               width: paperMinWidth,
               minHeight: paperMinHeight,
               fontFamily: fontOption.fontFamilyCss,
             }}
           >
-            {styles.template === 'creative' ? (
-              renderCreativeSplitLayout()
-            ) : (
-              <>
-                {renderHeader()}
-                <main>{renderOrderedSections()}</main>
-              </>
-            )}
+            <div className="flex-1">
+              {styles.template === 'creative' ? (
+                renderCreativeSplitLayout()
+              ) : (
+                <>
+                  {renderHeader()}
+                  <main>{renderOrderedSections()}</main>
+                </>
+              )}
+            </div>
+
+            <div className="mt-8 pt-3 border-t border-slate-200/80 text-[9px] uppercase tracking-[0.16em] text-slate-400 flex items-center justify-between gap-4">
+              <span>Engineered by Kitso Motlashuping</span>
+              <span className="font-mono tracking-normal">{styles.paperSize.toUpperCase()}</span>
+            </div>
 
             {/* Subtle Page Boundary Guide for users (hidden in print) */}
             <div className="no-print absolute bottom-2 right-4 text-[10px] text-slate-300 font-mono select-none">

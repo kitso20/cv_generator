@@ -7,6 +7,7 @@ import {
   AlignmentType,
   BorderStyle,
   TabStopType,
+  Footer,
   convertInchesToTwip,
 } from 'docx';
 import { ResumeData, COLOR_SCHEMES, FONT_OPTIONS } from '../types/resume';
@@ -576,6 +577,23 @@ export async function exportResumeToDocx(resume: ResumeData): Promise<void> {
             },
           },
         },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({
+                    text: 'Engineered by Kitso Motlashuping',
+                    size: 14,
+                    font: fontName,
+                    color: '9CA3AF',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        },
         children,
       },
     ],
@@ -583,7 +601,16 @@ export async function exportResumeToDocx(resume: ResumeData): Promise<void> {
 
   // Pack blob and trigger download
   const blob = await Packer.toBlob(doc);
-  const fileName = `${personal.fullName.trim() || 'Resume'}_Resume.docx`.replace(/\s+/g, '_');
+  const preferredName =
+    resume.title?.trim() && resume.title.trim().toLowerCase() !== 'my resume'
+      ? resume.title.trim()
+      : personal.fullName.trim();
+  const exportName =
+    (preferredName || 'Resume')
+      .replace(/[\\/:*?"<>|]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Resume';
+  const fileName = `${exportName}.docx`;
 
   const downloadUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');

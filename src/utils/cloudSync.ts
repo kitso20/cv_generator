@@ -146,7 +146,15 @@ export function downloadJsonFile(resume: ResumeData): void {
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(resume, null, 2));
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute('href', dataStr);
-  const name = (resume.personal.fullName || 'Resume').replace(/\s+/g, '_');
+  const preferredName =
+    resume.title?.trim() && resume.title.trim().toLowerCase() !== 'my resume'
+      ? resume.title.trim()
+      : resume.personal.fullName?.trim();
+  const name =
+    (preferredName || 'Resume')
+      .replace(/[\\/:*?"<>|]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Resume';
   downloadAnchor.setAttribute('download', `${name}_Backup_${new Date().toISOString().slice(0, 10)}.cvbackup`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();

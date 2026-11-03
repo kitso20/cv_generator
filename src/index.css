@@ -81,6 +81,7 @@
 
   .resume-scale-wrapper {
     transform: none !important;
+    zoom: 1 !important;
     width: 100% !important;
     max-width: 100% !important;
   }

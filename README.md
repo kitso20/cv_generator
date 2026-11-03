@@ -10,7 +10,7 @@ will look like.
 
 ## Requirements
 
-- Node.js 22+
+- Node.js 22.12+
 - npm
 
 ## Local development
@@ -33,6 +33,22 @@ npm run start:prod
 
 `npm run build` creates the Vite frontend in `dist/` and bundles the production
 Express server into `server.js`. The health endpoint is `GET /api/health`.
+
+## Production checklist
+
+- Set `PORT` and `APP_URL` for the target environment.
+- Mount `.data` on persistent storage. Cloud-sync writes are atomic, and an
+  unreadable data file is preserved as `<name>.corrupt-<timestamp>` instead of
+  being overwritten.
+- Terminate TLS at a reverse proxy. With `NODE_ENV=production` the server sends
+  security headers, static assets are cached immutably, and API responses are
+  marked `no-store`.
+- Point the platform health check at `GET /api/health` and send `SIGTERM` on
+  deploy; the server shuts down gracefully.
+- Run `npm run lint`, `npm run build`, and the CI smoke test before release.
+
+Exported PDF and DOCX documents include the "Engineered by Kitso Motlashuping"
+attribution footer.
 
 ## Docker
 

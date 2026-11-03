@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User,
   Briefcase,
@@ -836,44 +837,62 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       <div className="flex items-center border-b border-slate-200 dark:border-slate-800 p-1.5 bg-slate-50 dark:bg-slate-950/60 shrink-0">
         <button
           onClick={() => setActiveTab('content')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
             activeTab === 'content'
               ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-          <span>Content Details</span>
+          <span className="sm:hidden">Content</span>
+          <span className="hidden sm:inline">Content Details</span>
         </button>
 
         <button
           onClick={() => setActiveTab('sections')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
             activeTab === 'sections'
               ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>Section Order</span>
+          <span className="sm:hidden">Sections</span>
+          <span className="hidden sm:inline">Section Order</span>
         </button>
 
         <button
           onClick={() => setActiveTab('style')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
             activeTab === 'style'
               ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-          <span>Design & Style (Word Templates)</span>
+          <span className="sm:hidden">Style</span>
+          <span className="hidden sm:inline">Design &amp; Style</span>
+        </button>
+      </div>
+
+      {/* Always-visible add action */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+        <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400">
+          Add experience, education, skills, projects or a custom section.
+        </p>
+        <button
+          onClick={handleOpenAddPrompt}
+          className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+          title="Add a new entry to your resume"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add to Resume</span>
         </button>
       </div>
 
       {/* Mode 1: Drag-and-Drop Section Manager */}
       {activeTab === 'sections' && (
-        <div className="p-5 overflow-y-auto max-h-[calc(100vh-230px)] space-y-4">
+        <div className="p-3 sm:p-5 overflow-y-auto max-h-[calc(100dvh-260px)] space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -1032,7 +1051,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
           </div>
 
           {/* Subtab Contents */}
-          <div className="p-5 pb-20 overflow-y-auto max-h-[calc(100vh-270px)] space-y-6">
+          <div className="p-3 sm:p-5 pb-6 overflow-y-auto max-h-[calc(100dvh-300px)] space-y-6">
             {/* SUBTAB: Personal Details */}
             {contentSubTab === 'personal' && (
               <div className="space-y-4">
@@ -2097,7 +2116,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
       {/* Mode 3: Microsoft Word Style Visual Templates Gallery & Design Customizer */}
       {activeTab === 'style' && (
-        <div className="p-5 overflow-y-auto max-h-[calc(100vh-220px)] space-y-6">
+        <div className="p-3 sm:p-5 overflow-y-auto max-h-[calc(100dvh-260px)] space-y-6">
           {/* Word Style Header */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -2420,46 +2439,40 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         </div>
       )}
 
-      {/* Floating Add Button on the Bottom Right Corner (User requested) */}
-      <div className="absolute bottom-5 right-5 z-20">
-        <button
-          onClick={handleOpenAddPrompt}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-lg hover:shadow-xl transition-all cursor-pointer group"
-          title="Add new entry to resume"
-        >
-          <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center group-hover:rotate-90 transition-transform">
-            <Plus className="w-3.5 h-3.5" />
-          </div>
-          <span>Add to Resume</span>
-        </button>
-      </div>
-
       {/* Add New Entry Prompt Modal (Prompt for data, append at end, auto scroll) */}
-      {isAddPromptOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Modal Header */}
-            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white">
-                  <Plus className="w-4 h-4" />
+      {isAddPromptOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-3 sm:p-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-entry-title"
+          >
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] my-auto">
+              {/* Modal Header */}
+              <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex items-start sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-950/50">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 id="add-entry-title" className="text-sm font-bold text-slate-900 dark:text-white">
+                      Add New Entry
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Fill in the details and we will append it to the end.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Add New Entry
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Prompt details, append at the end, and auto-scroll to the new addition.
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddPromptOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded cursor-pointer shrink-0"
+                  aria-label="Close add entry prompt"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setIsAddPromptOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
             {/* Category Selector Buttons */}
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30">
@@ -2502,7 +2515,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {/* Experience Form */}
               {addCategory === 'experience' && (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Company Name *
@@ -2531,7 +2544,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Location
@@ -2629,7 +2642,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Degree *
@@ -2657,7 +2670,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Graduation Year / Dates
@@ -2721,7 +2734,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {/* Projects Form */}
               {addCategory === 'projects' && (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Project Name *
@@ -2793,7 +2806,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Issuing Authority
@@ -2839,7 +2852,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Category / Document Type *
@@ -2873,7 +2886,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Issuing Authority
@@ -2984,7 +2997,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Subtitle / Organization
@@ -3014,21 +3027,21 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               )}
 
               {/* Action Buttons */}
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
                 <span className="text-[11px] text-slate-400">
                   Appends at the end &amp; auto-scrolls to position
                 </span>
-                <div className="flex gap-2">
+                <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setIsAddPromptOpen(false)}
-                    className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+                    className="px-3.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                   >
                     <span>Add to End &amp; Jump</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -3036,9 +3049,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 </div>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

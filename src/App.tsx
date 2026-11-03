@@ -127,38 +127,40 @@ export default function App() {
       />
 
       {/* Mobile / Tablet Segmented View Switcher */}
-      <div className="no-print lg:hidden p-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex justify-center">
+      <div className="no-print lg:hidden sticky top-16 z-30 p-2.5 sm:p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex justify-center">
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full max-w-sm">
           <button
             onClick={() => setMobileView('editor')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               mobileView === 'editor'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
             <Edit3 className="w-3.5 h-3.5" />
-            <span>Editor & Styling</span>
+            <span className="sm:hidden">Editor</span>
+            <span className="hidden sm:inline">Editor &amp; Styling</span>
           </button>
           <button
             onClick={() => setMobileView('preview')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               mobileView === 'preview'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
             <Eye className="w-3.5 h-3.5" />
-            <span>Live Document Preview</span>
+            <span className="sm:hidden">Preview</span>
+            <span className="hidden sm:inline">Live Document Preview</span>
           </button>
         </div>
       </div>
 
       {/* Main Studio Viewport */}
-      <main className="flex-1 max-w-[1720px] w-full mx-auto p-3 sm:p-5 flex flex-col lg:flex-row gap-5 items-start">
+      <main className="flex-1 max-w-[1720px] w-full mx-auto p-2.5 sm:p-4 lg:p-5 flex flex-col lg:flex-row gap-4 lg:gap-5 items-start">
         {/* Left Column: Form Editor & Drag-and-Drop Manager */}
         <div
-          className={`no-print w-full lg:w-[48%] xl:w-[44%] shrink-0 lg:sticky lg:top-20 ${
+          className={`no-print w-full min-w-0 lg:w-[46%] xl:w-[44%] shrink-0 lg:sticky lg:top-20 ${
             mobileView === 'editor' ? 'block' : 'hidden lg:block'
           }`}
         >
@@ -172,7 +174,7 @@ export default function App() {
 
         {/* Right Column: Real-time Live Document Preview */}
         <div
-          className={`print-preview-column w-full lg:flex-1 flex flex-col items-center ${
+          className={`print-preview-column w-full min-w-0 lg:flex-1 flex flex-col items-center ${
             mobileView === 'preview' ? 'block' : 'hidden lg:block'
           }`}
         >
