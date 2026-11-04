@@ -577,23 +577,26 @@ export async function exportResumeToDocx(resume: ResumeData): Promise<void> {
             },
           },
         },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [
-                  new TextRun({
-                    text: 'Engineered by Kitso Motlashuping',
-                    size: 14,
-                    font: fontName,
-                    color: '9CA3AF',
-                  }),
-                ],
-              }),
-            ],
-          }),
-        },
+        footers:
+          resume.styles?.showAttribution === false
+            ? undefined
+            : {
+                default: new Footer({
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.RIGHT,
+                      children: [
+                        new TextRun({
+                          text: 'Engineered by Kitso Motlashuping',
+                          size: 14,
+                          font: fontName,
+                          color: '9CA3AF',
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+              },
         children,
       },
     ],
@@ -619,5 +622,6 @@ export async function exportResumeToDocx(resume: ResumeData): Promise<void> {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(downloadUrl);
+  // Defer revocation so the browser has time to start the download (Firefox race).
+  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 10_000);
 }

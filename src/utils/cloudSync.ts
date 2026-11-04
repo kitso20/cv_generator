@@ -1,4 +1,5 @@
 import { ResumeData } from '../types/resume';
+import { normalizeResumeData } from './resumeSchema';
 
 const LOCAL_STORAGE_KEY = 'cvforge_resume_active';
 const SYNC_CODE_KEY = 'cvforge_sync_code';
@@ -14,9 +15,11 @@ export interface CloudBackupItem {
 
 export function generateSyncCode(): string {
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const values = new Uint8Array(8);
+  crypto.getRandomValues(values);
   let result = 'CV-';
-  for (let i = 0; i < 5; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < values.length; i++) {
+    result += chars.charAt(values[i] % chars.length);
   }
   return result;
 }
@@ -46,7 +49,10 @@ export function loadLocalResume(): ResumeData | null {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.personal) {
+        return normalizeResumeData(parsed);
+      }
     }
   } catch (err) {
     console.error('Failed to load from localStorage:', err);
@@ -92,7 +98,7 @@ export async function loadResumeFromCloud(
       throw new Error(err.error || 'Sync code not found');
     }
     const data = await response.json();
-    return { success: true, resumeData: data.resumeData };
+    return { success: true, resumeData: normalizeResumeData(data.resumeData) };
   } catch (err: any) {
     return { success: false, error: err.message };
   }
@@ -139,6 +145,55 @@ export async function fetchCloudBackups(
     return { success: true, backups: data.backups || [] };
   } catch (err: any) {
     return { success: false, error: err.message };
+  }
+}
+
+export async function deleteCloudBackup(
+  backupId: string,
+  syncCode: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`/api/sync/backup/${encodeURIComponent(backupId)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncCode: syncCode.toUpperCase() }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to delete backup');
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through to the legacy copy path.
+    }
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-9999px';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    return copied;
+  } catch {
+    return false;
   }
 }
 

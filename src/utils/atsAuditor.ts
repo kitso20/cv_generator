@@ -41,7 +41,7 @@ const STRONG_ACTION_VERBS = new Set([
 ]);
 
 export function runAtsAudit(resume: ResumeData): AtsAuditReport {
-  const { personal, experience, education, skills, styles } = resume;
+  const { personal, experience, skills, styles } = resume;
   const checklist: AtsCheckItem[] = [];
 
   // Check 1: Contact Info Completeness

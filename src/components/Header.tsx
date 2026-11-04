@@ -1,21 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FileText,
   Download,
-  Share2,
   ShieldCheck,
   Moon,
   Sun,
   FileCheck2,
   FileSpreadsheet,
   Cloud,
-  CheckCircle2,
   ChevronDown,
-  Sparkles,
   RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 import { ResumeData } from '../types/resume';
-import { withPreviewPlaceholders } from '../data/previewPlaceholders';
+import { withPreviewPlaceholders, previewUsesPlaceholders } from '../data/previewPlaceholders';
 import { downloadJsonFile } from '../utils/cloudSync';
 import { runAtsAudit } from '../utils/atsAuditor';
 
@@ -30,6 +28,9 @@ interface HeaderProps {
   onOpenAtsModal: () => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
+  syncError: string | null;
+  /** Opt-in state; when false, edits are saved locally only. */
+  cloudSyncEnabled?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -43,11 +44,24 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAtsModal,
   darkMode,
   onToggleDarkMode,
+  syncError,
+  cloudSyncEnabled = true,
 }) => {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
-  const atsReport = runAtsAudit(resume);
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsExportMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isExportMenuOpen]);
+
+  // Auditing is expensive; only re-run when the resume actually changes.
+  const atsReport = useMemo(() => runAtsAudit(resume), [resume]);
 
   const getExportBaseName = () => {
     const fullName = resume.personal.fullName?.trim().replace(/\s+/g, ' ');
@@ -66,22 +80,34 @@ export const Header: React.FC<HeaderProps> = ({
     const previousTitle = document.title;
     const exportName = getExportBaseName();
     document.title = `${exportName} - Resume`;
-    window.print();
-    window.setTimeout(() => {
+    const restore = () => {
       document.title = previousTitle;
-    }, 1000);
+    };
+    // Prefer the print lifecycle over a fixed timer.
+    window.addEventListener('afterprint', restore, { once: true });
+    window.setTimeout(restore, 2000); // Fallback if afterprint never fires.
+    window.print();
   };
 
   const handleExportDocx = async () => {
     try {
+      // Never silently ship sample placeholder content as the user's resume.
+      if (previewUsesPlaceholders(resume)) {
+        const proceed = window.confirm(
+          'Your resume is empty, so an export right now would contain example placeholder content — not your details.\n\nExport with placeholder content anyway?'
+        );
+        if (!proceed) return;
+      }
       setIsExportingDocx(true);
+      setExportError(null);
       const { exportResumeToDocx } = await import('../utils/docxExport');
-      await exportResumeToDocx(withPreviewPlaceholders(resume));
+      await exportResumeToDocx(previewUsesPlaceholders(resume) ? withPreviewPlaceholders(resume) : resume);
+      setIsExportMenuOpen(false);
     } catch (err) {
       console.error('Failed to export DOCX:', err);
+      setExportError('Could not create the Word file. Please try again.');
     } finally {
       setIsExportingDocx(false);
-      setIsExportMenuOpen(false);
     }
   };
 
@@ -92,14 +118,14 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="no-print sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Zone 1: Wordmark & Document Name */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-9 h-9 rounded-lg bg-blue-900 dark:bg-blue-600 flex items-center justify-center text-white shadow-sm">
               <FileText className="w-5 h-5" />
             </div>
-            <div>
+            <div className="hidden min-[380px]:block">
               <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
                 CVForkt
                 <span className="hidden sm:inline text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
@@ -153,7 +179,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Applicant Tracking System (ATS) Compatibility Score"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>ATS {atsReport.overallScore}%</span>
+            <span><span className="hidden min-[360px]:inline">ATS </span>{atsReport.overallScore}%</span>
             <span className="hidden sm:inline text-[10px] opacity-75 font-mono">({atsReport.letterGrade})</span>
           </button>
 
@@ -161,16 +187,20 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenSyncModal}
             className="flex items-center gap-1.5 px-1.5 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200/80 dark:border-slate-700 cursor-pointer"
-            title={`Cloud Sync Code: ${syncCode}`}
-            aria-label={`Cloud sync code ${syncCode}`}
+            title={!cloudSyncEnabled ? 'Cloud sync is off — resume is saved locally only. Open to enable.' : syncError ? `Cloud sync unavailable: ${syncError}` : lastSyncedAt ? `Last synced ${new Date(lastSyncedAt).toLocaleTimeString()} · Code ${syncCode}` : `Cloud Sync Code: ${syncCode}`}
+            aria-label={!cloudSyncEnabled ? 'Cloud sync off; resume saved locally' : syncError ? `Cloud sync unavailable. Sync code ${syncCode}` : `Cloud sync code ${syncCode}`}
           >
             {isSyncing ? (
               <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600 dark:text-blue-400" />
+            ) : !cloudSyncEnabled ? (
+              <Cloud className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+            ) : syncError ? (
+              <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
             ) : (
               <Cloud className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             )}
-            <span className="hidden md:inline font-mono text-[11px] font-semibold">{syncCode}</span>
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="hidden md:inline font-mono text-[11px] font-semibold">{cloudSyncEnabled ? syncCode : 'Sync off'}</span>
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${!cloudSyncEnabled ? 'bg-slate-400' : syncError ? 'bg-rose-500' : isSyncing ? 'bg-amber-500' : 'bg-emerald-500'}`} />
           </button>
 
           {/* Dark Mode Toggle */}
@@ -186,34 +216,52 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Export Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              onClick={() => {
+                setIsExportMenuOpen(!isExportMenuOpen);
+                setExportError(null);
+              }}
               aria-label="Export resume"
               aria-expanded={isExportMenuOpen}
+              aria-haspopup="menu"
               className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-lg shadow-sm transition-all cursor-pointer whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Export</span>
-              <ChevronDown className="w-3 h-3 opacity-70" />
+              <ChevronDown className="hidden sm:block w-3 h-3 opacity-70" />
             </button>
 
             {isExportMenuOpen && (
               <>
                 <div
                   className="fixed inset-0 z-30"
+                  aria-hidden="true"
                   onClick={() => setIsExportMenuOpen(false)}
                 />
-                <div className="absolute right-0 mt-2 w-60 max-w-[calc(100vw-1rem)] rounded-xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                <div role="menu" aria-label="Export formats" className="absolute right-0 mt-2 w-60 max-w-[calc(100vw-1rem)] rounded-xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 mb-1">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                       Export Formats
                     </div>
-                    <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 truncate" title="Edit the resume title in the header to change this name">
-                      File: {getExportBaseName()}
+                    <label className="mt-1.5 block text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                      File name
+                      <input
+                        type="text"
+                        value={resume.title}
+                        onChange={(e) => onUpdateResume({ ...resume, title: e.target.value })}
+                        placeholder={getExportBaseName()}
+                        aria-label="Resume file name"
+                        autoComplete="off"
+                        className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                      />
+                    </label>
+                    <div className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                      Saves as {getExportBaseName()}.pdf / .docx
                     </div>
                   </div>
 
                   {/* Print / Save as PDF */}
                   <button
+                    role="menuitem"
                     onClick={handlePrintPdf}
                     className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
                   >
@@ -226,21 +274,36 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* Export DOCX */}
                   <button
+                    role="menuitem"
                     onClick={handleExportDocx}
                     disabled={isExportingDocx}
                     className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    <FileSpreadsheet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    {isExportingDocx ? (
+                      <RefreshCw className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin" />
+                    ) : (
+                      <FileSpreadsheet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    )}
                     <div>
-                      <div className="font-semibold">Word Document (.docx)</div>
+                      <div className="font-semibold">
+                        {isExportingDocx ? 'Preparing Word file...' : 'Word Document (.docx)'}
+                      </div>
                       <div className="text-[10px] text-slate-500 dark:text-slate-400">Native editable ATS format</div>
                     </div>
                   </button>
+
+                  {exportError && (
+                    <div className="mx-3 my-1 flex items-start gap-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 px-2.5 py-2 text-[10px] font-medium text-rose-700 dark:text-rose-300">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{exportError}</span>
+                    </div>
+                  )}
 
                   <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
 
                   {/* Export Backup File */}
                   <button
+                    role="menuitem"
                     onClick={handleExportBackup}
                     className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
                   >

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Mail,
   Phone,
@@ -9,11 +9,8 @@ import {
   Printer,
   ZoomIn,
   ZoomOut,
-  Maximize2,
-  Calendar,
   ExternalLink,
   ShieldCheck,
-  FileCheck,
   Download,
   X,
   Eye,
@@ -24,21 +21,21 @@ import {
   withPreviewPlaceholders,
   previewUsesPlaceholders,
 } from '../data/previewPlaceholders';
+import { safeHref, safeImageUrl } from '../utils/safeUrl';
+import { useModalDismiss } from '../hooks/useModalDismiss';
 
 interface ResumePreviewProps {
   resume: ResumeData;
-  scale?: number;
-  onUpdateResume?: (updated: ResumeData) => void;
 }
 
-export const ResumePreview: React.FC<ResumePreviewProps> = ({
-  resume,
-  scale: externalScale,
-}) => {
-  const [zoomLevel, setZoomLevel] = useState<number>(externalScale || 1.0);
+export const ResumePreview: React.FC<ResumePreviewProps> = ({ resume }) => {
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
   const [fitScale, setFitScale] = useState<number>(1);
   const [selectedDocForView, setSelectedDocForView] = useState<AttachedDocument | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+  const closeLightbox = useCallback(() => setSelectedDocForView(null), []);
+  useModalDismiss(Boolean(selectedDocForView), closeLightbox, lightboxRef);
 
   // Fit the A4 canvas to the available width on phones and smaller laptops.
   useEffect(() => {
@@ -70,8 +67,9 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
   const colorScheme = COLOR_SCHEMES[styles.colorPalette] || COLOR_SCHEMES.navy;
   const fontOption = FONT_OPTIONS[styles.fontFamily] || FONT_OPTIONS['modern-sans'];
 
-  // Spacing variables
-  const densityStyles = {
+  // Unknown spacing values (hand-edited/legacy backups) fall back to "standard"
+  // instead of crashing the whole preview.
+  const densityStyles = ({
     compact: {
       sectionGap: 'mb-4',
       itemGap: 'mb-2.5',
@@ -99,7 +97,15 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
       fontSizeBase: 'text-[14px] leading-loose',
       headingSize: 'text-lg font-bold tracking-wide',
     },
-  }[styles.spacing];
+  } as const)[styles.spacing] ?? {
+    sectionGap: 'mb-6',
+    itemGap: 'mb-4',
+    bulletGap: 'space-y-1',
+    headingMargin: 'mb-2.5',
+    padding: 'p-10 sm:p-12',
+    fontSizeBase: 'text-[13.5px] leading-relaxed',
+    headingSize: 'text-base font-bold tracking-wide',
+  };
 
   // Paper Dimensions:
   // A4 ratio: 210mm x 297mm (1 : 1.414)
@@ -109,7 +115,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
   const paperMinHeight = isLetter ? '1028px' : '1123px';
 
   // Section Heading Component
-  const renderSectionHeading = (title: string, customDividerClass = '') => {
+  const renderSectionHeading = (title: string) => {
     if (styles.template === 'ats-classic') {
       return (
         <div className={`border-b-2 border-slate-800 pb-0.5 ${densityStyles.headingMargin}`}>
@@ -333,9 +339,9 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
                   {proj.role && (
                     <span className="text-xs text-slate-500 italic">({proj.role})</span>
                   )}
-                  {proj.link && (
+                  {safeHref(proj.link) && (
                     <a
-                      href={proj.link}
+                      href={safeHref(proj.link)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-xs text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-500 hover:decoration-blue-400 active:text-blue-400 flex items-center gap-0.5"
@@ -520,10 +526,10 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
             <span>{personal.location}</span>
           </span>
         )}
-        {personal.website && (
+        {personal.website && safeHref(personal.website) && (
           <span className="flex items-center gap-1">
             <Globe className="w-3 h-3 text-slate-400 shrink-0" />
-            <a href={personal.website} target="_blank" rel="noreferrer" className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-500 hover:decoration-blue-400 active:text-blue-400">
+            <a href={safeHref(personal.website)} target="_blank" rel="noreferrer" className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-500 hover:decoration-blue-400 active:text-blue-400">
               {personal.website.replace(/^https?:\/\//, '')}
             </a>
           </span>
@@ -574,12 +580,13 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
             )}
           </div>
 
-          {styles.showPhoto && personal.photoUrl && (
+          {styles.showPhoto && safeImageUrl(personal.photoUrl) && (
             <div className="shrink-0">
               <img
-                src={personal.photoUrl}
+                src={safeImageUrl(personal.photoUrl)}
                 alt={personal.fullName}
                 referrerPolicy="no-referrer"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 className="w-20 h-20 rounded-full object-cover border-2 shadow-sm"
                 style={{ borderColor: colorScheme.primary }}
               />
@@ -620,15 +627,93 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
     });
   };
 
-  // Special Layout for 'creative' (Split-Column layout)
+  // Special Layout for 'creative' (Split-Column layout).
+  // Honors sectionOrder + sectionVisibility for both columns, and renders
+  // the Documents section and custom sections like every other template.
   const renderCreativeSplitLayout = () => {
+    const LEFT_COLUMN = new Set(['skills', 'education', 'certifications']);
+    const orderedLeft = sectionOrder.filter((id) => LEFT_COLUMN.has(id));
+    const orderedRight = sectionOrder.filter((id) => !LEFT_COLUMN.has(id));
+    const isVisible = (id: string) => sectionVisibility[id] !== false;
+
+    const renderSidebarSection = (sectionId: string) => {
+      if (!isVisible(sectionId)) return null;
+      switch (sectionId) {
+        case 'skills':
+          return skills.length > 0 ? (
+            <div key="skills" className="mb-6">
+              {renderSectionHeading('Skills')}
+              <div className="space-y-2 text-xs">
+                {skills.map((c) => (
+                  <div key={c.id}>
+                    <div className="font-semibold text-slate-800">{c.categoryName}</div>
+                    <div className="text-slate-600">{c.skills.join(', ')}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null;
+        case 'education':
+          return education.length > 0 ? (
+            <div key="education" className="mb-6">
+              {renderSectionHeading('Education')}
+              <div className="space-y-3 text-xs">
+                {education.map((e) => (
+                  <div key={e.id}>
+                    <div className="font-bold text-slate-800">{e.degree}</div>
+                    <div className="text-slate-600">{e.institution}</div>
+                    <div className="text-slate-400 font-mono text-[11px]">{e.endDate}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null;
+        case 'certifications':
+          return certifications.length > 0 ? (
+            <div key="certifications" className="mb-6">
+              {renderSectionHeading('Certifications')}
+              <div className="space-y-1.5 text-xs">
+                {certifications.map((c) => (
+                  <div key={c.id}>
+                    <div className="font-bold text-slate-800">{c.name}</div>
+                    <div className="text-slate-500 text-[11px]">{c.issuer}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null;
+        default:
+          return null;
+      }
+    };
+
+    const renderMainSection = (sectionId: string) => {
+      if (!isVisible(sectionId)) return null;
+      switch (sectionId) {
+        case 'summary':
+          return personal.summary ? <React.Fragment key="summary">{renderSummarySection()}</React.Fragment> : null;
+        case 'experience':
+          return experience.length > 0 ? <React.Fragment key="experience">{renderExperienceSection()}</React.Fragment> : null;
+        case 'projects':
+          return projects.length > 0 ? <React.Fragment key="projects">{renderProjectsSection()}</React.Fragment> : null;
+        case 'documents':
+          return documents && documents.length > 0 ? <React.Fragment key="documents">{renderDocumentsSection()}</React.Fragment> : null;
+        case 'education':
+        case 'skills':
+        case 'certifications':
+          return null; // These live in the sidebar for this layout.
+        default:
+          return <React.Fragment key={sectionId}>{renderCustomSection(sectionId)}</React.Fragment>;
+      }
+    };
+
     return (
       <div className="flex flex-col sm:flex-row gap-8">
         {/* Left Sidebar Column (33%) */}
         <div className="sm:w-1/3 border-b sm:border-b-0 sm:border-r border-slate-200 sm:pr-6 pb-6 sm:pb-0">
           <div className="mb-6">
             {personal.fullName && (
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900" style={{ color: colorScheme.primary }}>
+              <h1 className="text-2xl font-bold tracking-tight" style={{ color: colorScheme.primary }}>
                 {personal.fullName}
               </h1>
             )}
@@ -646,56 +731,12 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
             {renderContactBar(true)}
           </div>
 
-          {skills.length > 0 && sectionVisibility['skills'] !== false && (
-            <div className="mb-6">
-              {renderSectionHeading('Skills')}
-              <div className="space-y-2 text-xs">
-                {skills.map((c) => (
-                  <div key={c.id}>
-                    <div className="font-semibold text-slate-800">{c.categoryName}</div>
-                    <div className="text-slate-600">{c.skills.join(', ')}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {education.length > 0 && sectionVisibility['education'] !== false && (
-            <div className="mb-6">
-              {renderSectionHeading('Education')}
-              <div className="space-y-3 text-xs">
-                {education.map((e) => (
-                  <div key={e.id}>
-                    <div className="font-bold text-slate-800">{e.degree}</div>
-                    <div className="text-slate-600">{e.institution}</div>
-                    <div className="text-slate-400 font-mono text-[11px]">{e.endDate}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {certifications.length > 0 && sectionVisibility['certifications'] !== false && (
-            <div className="mb-6">
-              {renderSectionHeading('Certifications')}
-              <div className="space-y-1.5 text-xs">
-                {certifications.map((c) => (
-                  <div key={c.id}>
-                    <div className="font-bold text-slate-800">{c.name}</div>
-                    <div className="text-slate-500 text-[11px]">{c.issuer}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {orderedLeft.map(renderSidebarSection)}
         </div>
 
         {/* Right Main Column (67%) */}
         <div className="sm:w-2/3">
-          {personal.summary && sectionVisibility['summary'] !== false && renderSummarySection()}
-          {experience.length > 0 && sectionVisibility['experience'] !== false && renderExperienceSection()}
-          {projects.length > 0 && sectionVisibility['projects'] !== false && renderProjectsSection()}
-          {customSections.map((c) => sectionVisibility[c.id] !== false && renderCustomSection(c.id))}
+          {orderedRight.map(renderMainSection)}
         </div>
       </div>
     );
@@ -795,10 +836,12 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
               )}
             </div>
 
-            <div className="mt-8 pt-3 border-t border-slate-200/80 text-[9px] uppercase tracking-[0.16em] text-slate-400 flex items-center justify-between gap-4">
-              <span>Engineered by Kitso Motlashuping</span>
-              <span className="font-mono tracking-normal">{styles.paperSize.toUpperCase()}</span>
-            </div>
+            {styles.showAttribution !== false && (
+              <div className="mt-8 pt-3 border-t border-slate-200/80 text-[9px] uppercase tracking-[0.16em] text-slate-400 flex items-center justify-between gap-4">
+                <span>Engineered by Kitso Motlashuping</span>
+                <span className="font-mono tracking-normal">{String(styles.paperSize || 'a4').toUpperCase()}</span>
+              </div>
+            )}
 
             {/* Subtle Page Boundary Guide for users (hidden in print) */}
             <div className="no-print absolute bottom-2 right-4 text-[10px] text-slate-300 font-mono select-none">
@@ -810,15 +853,25 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
 
       {/* Document Viewer Modal Lightbox */}
       {selectedDocForView && (
-        <div className="no-print fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div
+          className="no-print fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="doc-viewer-title"
+          onClick={() => setSelectedDocForView(null)}
+        >
+          <div
+            ref={lightboxRef}
+            className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/50">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
                   <FileDocIcon className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-md">
+                  <h3 id="doc-viewer-title" className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-md">
                     {selectedDocForView.title}
                   </h3>
                   <div className="flex items-center gap-2 text-[11px] text-slate-500">
@@ -839,6 +892,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
               <button
                 onClick={() => setSelectedDocForView(null)}
                 className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer"
+                aria-label="Close document viewer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -869,9 +923,9 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
 
               {/* Document Preview Canvas */}
               <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/60 min-h-[220px]">
-                {selectedDocForView.fileData && selectedDocForView.fileData.startsWith('data:image/') ? (
+                {selectedDocForView.fileData && safeImageUrl(selectedDocForView.fileData)?.startsWith('data:image/') ? (
                   <img
-                    src={selectedDocForView.fileData}
+                    src={safeImageUrl(selectedDocForView.fileData)}
                     alt={selectedDocForView.title}
                     className="max-h-72 object-contain rounded-lg shadow-sm border border-slate-200"
                   />
@@ -903,9 +957,9 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
                 Status: Verified &amp; Attached to Application Dossier
               </span>
               <div className="flex gap-2">
-                {selectedDocForView.fileData && (
+                {selectedDocForView.fileData && safeImageUrl(selectedDocForView.fileData) && (
                   <a
-                    href={selectedDocForView.fileData}
+                    href={safeImageUrl(selectedDocForView.fileData)}
                     download={selectedDocForView.fileName || 'attachment_document'}
                     className="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-1.5 transition-colors"
                   >

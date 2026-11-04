@@ -1,0 +1,24 @@
+{
+  "name": "CVForkt - Professional Resume & CV Generator",
+  "short_name": "CVForkt",
+  "description": "ATS-compliant professional resume and CV generator with live preview, styling templates, cloud sync, and PDF/DOCX export.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e3a8a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

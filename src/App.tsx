@@ -1,16 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  FileText,
   Eye,
   Edit3,
-  Sliders,
-  Sparkles,
-  Cloud,
-  CheckCircle2,
-  AlertCircle,
 } from 'lucide-react';
 import { ResumeData } from './types/resume';
 import { EMPTY_RESUME  } from './data/sampleResumes';
+import { hasUserContent } from './data/previewPlaceholders';
 import {
   getStoredSyncCode,
   setStoredSyncCode,
@@ -33,8 +28,23 @@ export default function App() {
   });
 
   const [syncCode, setSyncCode] = useState<string>(() => getStoredSyncCode());
+  // Cloud sync is opt-in: nothing is uploaded until the user enables it
+  // (or loads a shared resume via a sync code). Local saves always happen.
+  const [cloudSyncEnabled, setCloudSyncEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('cvforge_cloud_sync') === 'on';
+    } catch {
+      return false;
+    }
+  });
+  const cloudSyncEnabledRef = useRef(cloudSyncEnabled);
+  useEffect(() => {
+    cloudSyncEnabledRef.current = cloudSyncEnabled;
+  }, [cloudSyncEnabled]);
+
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   // Editor Sub-tabs & mobile view toggles
   const [activeEditorTab, setActiveEditorTab] = useState<'content' | 'sections' | 'style'>('content');
@@ -67,21 +77,59 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // Load resume from URL param ?sync=... if present
+  // Load resume from URL param ?sync=... if present.
+  // The param is removed from the address bar afterwards (it is a credential),
+  // and we never overwrite a resume that has real content without confirmation.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlSyncCode = params.get('sync');
+
+    const stripSyncParam = () => {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('sync');
+        window.history.replaceState({}, document.title, url.pathname + (url.search || '') + url.hash);
+      } catch {
+        // Non-fatal; the code simply remains in the URL.
+      }
+    };
+
     if (urlSyncCode && urlSyncCode.trim()) {
       const code = urlSyncCode.trim().toUpperCase();
-      setSyncCode(code);
-      setStoredSyncCode(code);
+
+      // Refuse to clobber a non-empty local resume without explicit consent.
+      const localHasContent = hasUserContent(loadLocalResume() ?? resume);
+      if (
+        localHasContent &&
+        !window.confirm(
+          'This link loads a shared resume from the cloud and will replace your current resume in this workspace. Continue?'
+        )
+      ) {
+        stripSyncParam();
+        return;
+      }
+
       loadResumeFromCloud(code).then((res) => {
         if (res.success && res.resumeData) {
+          setSyncCode(code);
+          setStoredSyncCode(code);
           setResume(res.resumeData);
           saveLocalResume(res.resumeData);
+          // Loading a shared resume implies wanting cloud sync; enable it.
+          setCloudSyncEnabled(true);
+          try {
+            localStorage.setItem('cvforge_cloud_sync', 'on');
+          } catch {
+            // Private mode etc. — sync still works for this session.
+          }
+          setSyncError(null);
+        } else {
+          setSyncError(res.error || 'Could not load the shared resume');
         }
+        stripSyncParam();
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounced Auto-sync to LocalStorage and Cloud
@@ -91,19 +139,51 @@ export default function App() {
     setResume(updated);
     saveLocalResume(updated);
 
-    // Debounce cloud sync
+    // Debounce cloud sync (only when the user opted in; local save happens always).
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
     }
 
     syncTimeoutRef.current = setTimeout(async () => {
+      if (!cloudSyncEnabledRef.current) {
+        return;
+      }
       setIsSyncing(true);
       const res = await syncResumeToCloud(updated, syncCode);
       setIsSyncing(false);
       if (res.success) {
         setLastSyncedAt(res.updatedAt || new Date().toISOString());
+        setSyncError(null);
+      } else {
+        setSyncError(res.error || 'Cloud sync unavailable');
       }
     }, 1500);
+  };
+
+  const handleToggleCloudSync = (enabled: boolean) => {
+    setCloudSyncEnabled(enabled);
+    cloudSyncEnabledRef.current = enabled;
+    try {
+      localStorage.setItem('cvforge_cloud_sync', enabled ? 'on' : 'off');
+    } catch {
+      // Private mode — session-only toggle.
+    }
+    if (enabled) {
+      // Upload immediately so enabling feels responsive.
+      setIsSyncing(true);
+      syncResumeToCloud(resume, syncCode).then((res) => {
+        setIsSyncing(false);
+        if (res.success) {
+          setLastSyncedAt(res.updatedAt || new Date().toISOString());
+          setSyncError(null);
+        } else {
+          setSyncError(res.error || 'Cloud sync unavailable');
+        }
+      });
+    } else {
+      setSyncError(null);
+      setLastSyncedAt(null);
+    }
   };
 
   const handleToggleDarkMode = () => {
@@ -124,6 +204,8 @@ export default function App() {
         onOpenAtsModal={() => setIsAtsModalOpen(true)}
         darkMode={darkMode}
         onToggleDarkMode={handleToggleDarkMode}
+        syncError={syncError}
+        cloudSyncEnabled={cloudSyncEnabled}
       />
 
       {/* Mobile / Tablet Segmented View Switcher */}
@@ -131,6 +213,8 @@ export default function App() {
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full max-w-sm">
           <button
             onClick={() => setMobileView('editor')}
+            aria-label="Show editor"
+            aria-pressed={mobileView === 'editor'}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               mobileView === 'editor'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
@@ -143,6 +227,8 @@ export default function App() {
           </button>
           <button
             onClick={() => setMobileView('preview')}
+            aria-label="Show preview"
+            aria-pressed={mobileView === 'preview'}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               mobileView === 'preview'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
@@ -178,10 +264,7 @@ export default function App() {
             mobileView === 'preview' ? 'block' : 'hidden lg:block'
           }`}
         >
-          <ResumePreview
-            resume={resume}
-            onUpdateResume={handleUpdateResume}
-          />
+          <ResumePreview resume={resume} />
         </div>
       </main>
 
@@ -201,6 +284,9 @@ export default function App() {
         onUpdateResume={handleUpdateResume}
         onUpdateSyncCode={setSyncCode}
         lastSyncedAt={lastSyncedAt}
+        syncError={syncError}
+        cloudSyncEnabled={cloudSyncEnabled}
+        onToggleCloudSync={handleToggleCloudSync}
       />
 
       <AtsModal

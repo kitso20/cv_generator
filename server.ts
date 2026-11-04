@@ -1,16 +1,21 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const app = express();
+
+// Trust X-Forwarded-For only from private/loopback proxies (typical same-host
+// reverse proxy). Public clients cannot spoof their IP to dodge rate limits.
+app.set('trust proxy', 'uniquelocal');
 const parsedPort = Number.parseInt(process.env.PORT || '', 10);
 const port = Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort < 65536 ? parsedPort : 3000;
 
 app.disable('x-powered-by');
-app.use((req, res, next) => {
+app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -22,11 +27,53 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use('/api', (req, res, next) => {
+app.use('/api', (_req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   next();
 });
 app.use(express.json({ limit: '10mb' }));
+
+// --- Simple in-memory rate limiting (per IP) --------------------------------
+// Protects the unauthenticated sync endpoints from brute-force enumeration of
+// sync codes and from accidental request floods. State is per-process, which
+// matches the single-container deployment.
+interface RateBucket {
+  count: number;
+  resetAt: number;
+}
+const rateBuckets = new Map<string, RateBucket>();
+const RATE_WINDOW_MS = 60_000;
+
+function rateLimit(name: string, maxRequests: number) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const now = Date.now();
+    // Sweep expired buckets occasionally to bound memory.
+    if (rateBuckets.size > 5000) {
+      for (const [key, bucket] of rateBuckets) {
+        if (bucket.resetAt <= now) rateBuckets.delete(key);
+      }
+    }
+    const key = `${name}:${req.ip || 'unknown'}`;
+    const bucket = rateBuckets.get(key);
+    if (!bucket || bucket.resetAt <= now) {
+      rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+      return next();
+    }
+    bucket.count += 1;
+    if (bucket.count > maxRequests) {
+      res.setHeader('Retry-After', Math.ceil((bucket.resetAt - now) / 1000));
+      return res.status(429).json({ error: 'Too many requests. Please slow down and try again shortly.' });
+    }
+    next();
+  };
+}
+
+// Generous ceiling for all API traffic; tighter on the read/load endpoints to
+// slow down sync-code guessing (a valid code is enough to read a resume).
+const apiLimiter = rateLimit('api', 120);
+const loadLimiter = rateLimit('load', 30);
+
+app.use('/api', apiLimiter);
 
 // Ensure data directory exists
 const DATA_DIR = path.resolve(process.cwd(), '.data');
@@ -37,7 +84,7 @@ if (!fs.existsSync(DATA_DIR)) {
 const RESUMES_FILE = path.join(DATA_DIR, 'cloud_resumes.json');
 const BACKUPS_FILE = path.join(DATA_DIR, 'cloud_backups.json');
 
-const SYNC_CODE_PATTERN = /^[A-Z0-9][A-Z0-9-]{2,31}$/;
+const SYNC_CODE_PATTERN = /^[A-Z0-9][A-Z0-9-]{4,31}$/;
 const BACKUP_ID_PATTERN = /^[A-Z0-9-]{3,64}$/;
 
 function normalizeSyncCode(value: unknown): string | null {
@@ -102,7 +149,7 @@ interface CloudBackupRecord {
 }
 
 // API Routes
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
@@ -142,7 +189,7 @@ app.post('/api/sync/save', (req, res) => {
 });
 
 // Load resume by sync code
-app.get('/api/sync/load/:code', (req, res) => {
+app.get('/api/sync/load/:code', loadLimiter, (req, res) => {
   try {
     const code = normalizeSyncCode(req.params.code);
     if (!code) {
@@ -191,13 +238,16 @@ app.post('/api/sync/backup', (req, res) => {
           : `Snapshot ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
       resumeData,
       timestamp: now,
-      checksum: Buffer.from(JSON.stringify(resumeData)).toString('base64').slice(0, 16),
+      checksum: crypto.createHash('sha256').update(JSON.stringify(resumeData)).digest('hex').slice(0, 16),
     };
 
     backups.unshift(newBackup);
-    // Keep last 50 backups
-    const trimmed = backups.slice(0, 50);
-    saveJson(BACKUPS_FILE, trimmed);
+    const MAX_BACKUPS_PER_CODE = 50;
+    const MAX_TOTAL_BACKUPS = 500;
+    const otherCodes = backups.filter((backup) => backup.syncCode !== code);
+    const thisCode = backups.filter((backup) => backup.syncCode === code).slice(0, MAX_BACKUPS_PER_CODE);
+    // Bound total storage too; keep the newest MAX_TOTAL_BACKUPS across all codes.
+    saveJson(BACKUPS_FILE, [...thisCode, ...otherCodes].slice(0, MAX_TOTAL_BACKUPS));
 
     res.json({
       success: true,
@@ -211,7 +261,7 @@ app.post('/api/sync/backup', (req, res) => {
 });
 
 // List backups for a sync code
-app.get('/api/sync/backups/:code', (req, res) => {
+app.get('/api/sync/backups/:code', loadLimiter, (req, res) => {
   try {
     const code = normalizeSyncCode(req.params.code);
     if (!code) {
@@ -235,12 +285,17 @@ app.get('/api/sync/backups/:code', (req, res) => {
 app.delete('/api/sync/backup/:id', (req, res) => {
   try {
     const id = req.params.id?.toUpperCase();
-    if (!id || !BACKUP_ID_PATTERN.test(id)) {
-      return res.status(400).json({ error: 'Invalid backup id' });
+    const code = normalizeSyncCode(req.body?.syncCode ?? req.query?.syncCode);
+    if (!id || !BACKUP_ID_PATTERN.test(id) || !code) {
+      return res.status(400).json({ error: 'A valid backup id and sync code are required' });
     }
 
     let backups = loadJson<CloudBackupRecord[]>(BACKUPS_FILE, []);
-    backups = backups.filter(b => b.id !== id);
+    const before = backups.length;
+    backups = backups.filter((backup) => !(backup.id === id && backup.syncCode === code));
+    if (backups.length === before) {
+      return res.status(404).json({ error: 'Backup not found' });
+    }
     saveJson(BACKUPS_FILE, backups);
     res.json({ success: true, message: 'Backup deleted' });
   } catch (error: any) {
@@ -250,7 +305,7 @@ app.delete('/api/sync/backup/:id', (req, res) => {
 });
 
 // Unknown API routes must not fall through to the SPA shell.
-app.use('/api', (req, res) => {
+app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'API route not found' });
 });
 
@@ -289,12 +344,12 @@ async function startServer() {
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(distPath, 'index.html'));
     });
-    app.use((req, res) => {
+    app.use((_req, res) => {
       res.status(404).send('Not found');
     });
   }
 
-  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (res.headersSent) {
       return next(err);
     }

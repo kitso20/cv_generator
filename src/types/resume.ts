@@ -162,6 +162,8 @@ export interface ResumeStyles {
   paperSize: PaperSize;
   showDividers: boolean;
   showDocumentAppendix?: boolean;
+  /** Show the "Engineered by …" attribution footer on screen, in print and in DOCX/PDF exports. Default true. */
+  showAttribution?: boolean;
 }
 
 export interface ResumeData {

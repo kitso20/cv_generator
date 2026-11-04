@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useModalDismiss } from '../hooks/useModalDismiss';
+import { CommaSeparatedInput } from './CommaSeparatedInput';
 import {
   User,
   Briefcase,
@@ -14,22 +16,17 @@ import {
   EyeOff,
   ChevronUp,
   ChevronDown,
-  Sparkles,
   Layers,
   FileText,
   Sliders,
-  ExternalLink,
   Check,
   Palette,
   Type,
-  Layout,
   X,
   ArrowRight,
   BookOpen,
   ShieldCheck,
   Upload,
-  FileCheck,
-  Download,
 } from 'lucide-react';
 import {
   ResumeData,
@@ -41,12 +38,159 @@ import {
   CustomSection,
   AttachedDocument,
   DocumentCategory,
-  COLOR_SCHEMES,
-  FONT_OPTIONS,
   TemplateId,
   ColorPaletteId,
   FontFamilyId,
 } from '../types/resume';
+
+// Word-Style Visual Templates Definitions
+const WORD_VISUAL_TEMPLATES: Array<{
+  id: TemplateId;
+  name: string;
+  wordTheme: string;
+  category: 'ats' | 'executive' | 'modern' | 'creative';
+  badge: string;
+  colorHex: string;
+  fontName: string;
+  desc: string;
+  preview: {
+    headerStyle: 'banner' | 'centered' | 'left' | 'split' | 'minimal';
+    bannerBg?: string;
+    twoColumn?: boolean;
+  };
+}> = [
+  {
+    id: 'ats-classic',
+    name: 'Harvard Standard ATS',
+    wordTheme: 'Word Traditional (Single-Column)',
+    category: 'ats',
+    badge: '100% ATS Match',
+    colorHex: '#0F172A',
+    fontName: 'Times New Roman / Georgia',
+    desc: 'Matches traditional Microsoft Word Harvard template format. Standard single column, zero parser friction.',
+    preview: {
+      headerStyle: 'centered',
+    },
+  },
+  {
+    id: 'modern',
+    name: 'Modern Chronological',
+    wordTheme: 'Word Modern Blue Accent',
+    category: 'modern',
+    badge: 'Popular Corporate',
+    colorHex: '#1E3A8A',
+    fontName: 'Plus Jakarta Sans',
+    desc: 'Top colored accent rule with contemporary scannable sans-serif type. Clean divider lines.',
+    preview: {
+      headerStyle: 'banner',
+      bannerBg: '#1E3A8A',
+    },
+  },
+  {
+    id: 'executive',
+    name: 'Executive Leadership',
+    wordTheme: 'Word Executive Regal',
+    category: 'executive',
+    badge: 'Senior Leadership',
+    colorHex: '#881337',
+    fontName: 'Playfair Display Serif',
+    desc: 'Formal editorial layout with twin rule line headers and date column tab stops.',
+    preview: {
+      headerStyle: 'centered',
+    },
+  },
+  {
+    id: 'creative',
+    name: 'Duo-Tone Sidebar Split',
+    wordTheme: 'Word Creative Split Page',
+    category: 'creative',
+    badge: 'Visual Portfolio',
+    colorHex: '#065F46',
+    fontName: 'Outfit Geometric',
+    desc: 'Two-column layout with tinted 30% left sidebar for contact & skills and 70% main body.',
+    preview: {
+      headerStyle: 'split',
+      twoColumn: true,
+    },
+  },
+  {
+    id: 'minimalist',
+    name: 'Nordic Clean Minimal',
+    wordTheme: 'Word Swiss Monochrome',
+    category: 'modern',
+    badge: 'Airy & Concise',
+    colorHex: '#27272A',
+    fontName: 'Plus Jakarta Sans',
+    desc: 'High-whitespace layout with understated hairline rules and elegant breathing room.',
+    preview: {
+      headerStyle: 'minimal',
+    },
+  },
+  {
+    id: 'technical',
+    name: 'Silicon Valley Dev',
+    wordTheme: 'Word Technical Console',
+    category: 'modern',
+    badge: 'Engineering Focus',
+    colorHex: '#3730A3',
+    fontName: 'JetBrains Mono',
+    desc: 'Monospace code tag accents, GitHub links, and structured technology stack highlights.',
+    preview: {
+      headerStyle: 'left',
+    },
+  },
+];
+
+// Quick One-Click Word Style Sets (Palette + Font + Header)
+const WORD_STYLE_SETS: Array<{
+  name: string;
+  desc: string;
+  palette: ColorPaletteId;
+  font: FontFamilyId;
+  template: TemplateId;
+  layout: 'left-aligned' | 'centered';
+}> = [
+  {
+    name: 'Office Classic',
+    desc: 'Navy + Plus Jakarta Sans + Modern',
+    palette: 'navy',
+    font: 'modern-sans',
+    template: 'modern',
+    layout: 'left-aligned',
+  },
+  {
+    name: 'Harvard Crimson',
+    desc: 'Burgundy + Georgia Serif + ATS Harvard',
+    palette: 'crimson',
+    font: 'classic-clean',
+    template: 'ats-classic',
+    layout: 'centered',
+  },
+  {
+    name: 'Emerald Executive',
+    desc: 'Forest Green + Playfair + Executive',
+    palette: 'emerald',
+    font: 'editorial-serif',
+    template: 'executive',
+    layout: 'centered',
+  },
+  {
+    name: 'Tech Indigo',
+    desc: 'Royal Indigo + JetBrains Mono + Technical',
+    palette: 'indigo',
+    font: 'mono-tech',
+    template: 'technical',
+    layout: 'left-aligned',
+  },
+  {
+    name: 'Modern Slate',
+    desc: 'Monochrome Slate + Outfit + Minimalist',
+    palette: 'slate',
+    font: 'geometric-sans',
+    template: 'minimalist',
+    layout: 'left-aligned',
+  },
+];
 
 interface EditorPanelProps {
   resume: ResumeData;
@@ -63,9 +207,14 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 }) => {
   const [contentSubTab, setContentSubTab] = useState<string>('personal');
   const [draggedSectionIndex, setDraggedSectionIndex] = useState<number | null>(null);
+  // Ephemeral order while a drag is in flight — committed to resume state once,
+  // on drag end, instead of on every dragover event.
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
 
   // Bottom-Right Add Prompt Modal state
   const [isAddPromptOpen, setIsAddPromptOpen] = useState(false);
+  const addPromptPanelRef = useRef<HTMLDivElement>(null);
+  useModalDismiss(isAddPromptOpen, () => setIsAddPromptOpen(false), addPromptPanelRef);
   const [addCategory, setAddCategory] = useState<
     'experience' | 'education' | 'skills' | 'projects' | 'certifications' | 'documents' | 'custom'
   >('experience');
@@ -150,6 +299,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
   // Track newly added item for auto-scroll and visual highlight
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  // Track pending highlight timers so they can be cancelled on unmount.
+  const highlightTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
   // Template filter for Word-style gallery
   const [templateFilter, setTemplateFilter] = useState<'all' | 'ats' | 'executive' | 'modern' | 'creative'>('all');
@@ -206,31 +357,63 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     onChange(newResume);
   };
 
-  // Section drag and drop reordering
-  const handleDragStart = (index: number) => {
+  // Section drag and drop reordering.
+  // The live order lives in local state during the drag; `onChange` (and the
+  // lastModified bump + cloud sync) fires only once, on drag end.
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.effectAllowed = 'move';
+    // Required for drag to start in Firefox.
+    e.dataTransfer.setData('text/plain', String(index));
     setDraggedSectionIndex(index);
+    setDragOrder([...sectionOrder]);
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     if (draggedSectionIndex === null || draggedSectionIndex === index) return;
 
-    const newOrder = [...sectionOrder];
-    const draggedItem = newOrder[draggedSectionIndex];
-    newOrder.splice(draggedSectionIndex, 1);
-    newOrder.splice(index, 0, draggedItem);
-
-    setDraggedSectionIndex(index);
-    onChange({
-      ...resume,
-      lastModified: new Date().toISOString(),
-      sectionOrder: newOrder,
+    setDragOrder((current) => {
+      const order = current ?? [...sectionOrder];
+      const next = [...order];
+      const [draggedItem] = next.splice(draggedSectionIndex, 1);
+      next.splice(index, 0, draggedItem);
+      return next;
     });
+    setDraggedSectionIndex(index);
   };
 
   const handleDragEnd = () => {
+    if (dragOrder && dragOrder.join('|') !== sectionOrder.join('|')) {
+      onChange({
+        ...resume,
+        lastModified: new Date().toISOString(),
+        sectionOrder: dragOrder,
+      });
+    }
+    setDragOrder(null);
     setDraggedSectionIndex(null);
   };
+
+  // If the resume prop is replaced externally (cloud load, import, undo)
+  // while a drag is active, abandon the ephemeral drag state.
+  useEffect(() => {
+    if (dragOrder) {
+      setDragOrder(null);
+      setDraggedSectionIndex(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionOrder]);
+
+  // Cancel highlight timers on unmount (no setState after unmount).
+  useEffect(() => {
+    const timers = highlightTimersRef.current;
+    return () => {
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+    };
+  }, []);
 
   const moveSection = (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
@@ -641,17 +824,21 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     // Trigger smooth auto-scroll to the newly added item at the end and highlight it
     if (newId) {
       setHighlightedItemId(newId);
-      setTimeout(() => {
-        const el = document.getElementById(newId);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 150);
+      highlightTimersRef.current.push(
+        setTimeout(() => {
+          const el = document.getElementById(newId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 150)
+      );
 
       // Remove highlight after 2.5s
-      setTimeout(() => {
-        setHighlightedItemId(null);
-      }, 2800);
+      highlightTimersRef.current.push(
+        setTimeout(() => {
+          setHighlightedItemId(null);
+        }, 2800)
+      );
     }
   };
 
@@ -677,165 +864,21 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     }
   };
 
-  // Word-Style Visual Templates Definitions
-  const WORD_VISUAL_TEMPLATES: Array<{
-    id: TemplateId;
-    name: string;
-    wordTheme: string;
-    category: 'ats' | 'executive' | 'modern' | 'creative';
-    badge: string;
-    colorHex: string;
-    fontName: string;
-    desc: string;
-    preview: {
-      headerStyle: 'banner' | 'centered' | 'left' | 'split' | 'minimal';
-      bannerBg?: string;
-      twoColumn?: boolean;
-    };
-  }> = [
-    {
-      id: 'ats-classic',
-      name: 'Harvard Standard ATS',
-      wordTheme: 'Word Traditional (Single-Column)',
-      category: 'ats',
-      badge: '100% ATS Match',
-      colorHex: '#0F172A',
-      fontName: 'Times New Roman / Georgia',
-      desc: 'Matches traditional Microsoft Word Harvard template format. Standard single column, zero parser friction.',
-      preview: {
-        headerStyle: 'centered',
-      },
-    },
-    {
-      id: 'modern',
-      name: 'Modern Chronological',
-      wordTheme: 'Word Modern Blue Accent',
-      category: 'modern',
-      badge: 'Popular Corporate',
-      colorHex: '#1E3A8A',
-      fontName: 'Plus Jakarta Sans',
-      desc: 'Top colored accent rule with contemporary scannable sans-serif type. Clean divider lines.',
-      preview: {
-        headerStyle: 'banner',
-        bannerBg: '#1E3A8A',
-      },
-    },
-    {
-      id: 'executive',
-      name: 'Executive Leadership',
-      wordTheme: 'Word Executive Regal',
-      category: 'executive',
-      badge: 'Senior Leadership',
-      colorHex: '#881337',
-      fontName: 'Playfair Display Serif',
-      desc: 'Formal editorial layout with twin rule line headers and date column tab stops.',
-      preview: {
-        headerStyle: 'centered',
-      },
-    },
-    {
-      id: 'creative',
-      name: 'Duo-Tone Sidebar Split',
-      wordTheme: 'Word Creative Split Page',
-      category: 'creative',
-      badge: 'Visual Portfolio',
-      colorHex: '#065F46',
-      fontName: 'Outfit Geometric',
-      desc: 'Two-column layout with tinted 30% left sidebar for contact & skills and 70% main body.',
-      preview: {
-        headerStyle: 'split',
-        twoColumn: true,
-      },
-    },
-    {
-      id: 'minimalist',
-      name: 'Nordic Clean Minimal',
-      wordTheme: 'Word Swiss Monochrome',
-      category: 'modern',
-      badge: 'Airy & Concise',
-      colorHex: '#27272A',
-      fontName: 'Plus Jakarta Sans',
-      desc: 'High-whitespace layout with understated hairline rules and elegant breathing room.',
-      preview: {
-        headerStyle: 'minimal',
-      },
-    },
-    {
-      id: 'technical',
-      name: 'Silicon Valley Dev',
-      wordTheme: 'Word Technical Console',
-      category: 'modern',
-      badge: 'Engineering Focus',
-      colorHex: '#3730A3',
-      fontName: 'JetBrains Mono',
-      desc: 'Monospace code tag accents, GitHub links, and structured technology stack highlights.',
-      preview: {
-        headerStyle: 'left',
-      },
-    },
-  ];
-
-  // Quick One-Click Word Style Sets (Palette + Font + Header)
-  const WORD_STYLE_SETS: Array<{
-    name: string;
-    desc: string;
-    palette: ColorPaletteId;
-    font: FontFamilyId;
-    template: TemplateId;
-    layout: 'left-aligned' | 'centered';
-  }> = [
-    {
-      name: 'Office Classic',
-      desc: 'Navy + Plus Jakarta Sans + Modern',
-      palette: 'navy',
-      font: 'modern-sans',
-      template: 'modern',
-      layout: 'left-aligned',
-    },
-    {
-      name: 'Harvard Crimson',
-      desc: 'Burgundy + Georgia Serif + ATS Harvard',
-      palette: 'crimson',
-      font: 'classic-clean',
-      template: 'ats-classic',
-      layout: 'centered',
-    },
-    {
-      name: 'Emerald Executive',
-      desc: 'Forest Green + Playfair + Executive',
-      palette: 'emerald',
-      font: 'editorial-serif',
-      template: 'executive',
-      layout: 'centered',
-    },
-    {
-      name: 'Tech Indigo',
-      desc: 'Royal Indigo + JetBrains Mono + Technical',
-      palette: 'indigo',
-      font: 'mono-tech',
-      template: 'technical',
-      layout: 'left-aligned',
-    },
-    {
-      name: 'Modern Slate',
-      desc: 'Monochrome Slate + Outfit + Minimalist',
-      palette: 'slate',
-      font: 'geometric-sans',
-      template: 'minimalist',
-      layout: 'left-aligned',
-    },
-  ];
-
-  const filteredTemplates = WORD_VISUAL_TEMPLATES.filter((t) => {
-    if (templateFilter === 'all') return true;
-    return t.category === templateFilter;
-  });
+  const filteredTemplates = useMemo(
+    () =>
+      templateFilter === 'all'
+        ? WORD_VISUAL_TEMPLATES
+        : WORD_VISUAL_TEMPLATES.filter((t) => t.category === templateFilter),
+    [templateFilter]
+  );
 
   return (
     <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden flex flex-col h-full relative">
       {/* Top Main Mode Navigation Tabs */}
-      <div className="flex items-center border-b border-slate-200 dark:border-slate-800 p-1.5 bg-slate-50 dark:bg-slate-950/60 shrink-0">
+      <div role="tablist" aria-label="Editor mode" className="flex items-center border-b border-slate-200 dark:border-slate-800 p-1.5 bg-slate-50 dark:bg-slate-950/60 shrink-0">
         <button
+          role="tab"
+          aria-selected={activeTab === 'content'}
           onClick={() => setActiveTab('content')}
           className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
             activeTab === 'content'
@@ -849,6 +892,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'sections'}
           onClick={() => setActiveTab('sections')}
           className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
             activeTab === 'sections'
@@ -862,6 +907,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'style'}
           onClick={() => setActiveTab('style')}
           className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
             activeTab === 'style'
@@ -912,7 +959,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
           </div>
 
           <div className="space-y-2 mt-3">
-            {sectionOrder.map((secId, index) => {
+            {(dragOrder ?? sectionOrder).map((secId, index) => {
               const isVisible = sectionVisibility[secId] !== false;
               const isCustom = secId.startsWith('custom-');
               const customItem = isCustom ? customSections.find((c) => c.id === secId) : null;
@@ -920,10 +967,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               return (
                 <div
                   key={secId}
-                  draggable
-                  onDragStart={() => handleDragStart(index)}
                   onDragOver={(e) => handleDragOver(e, index)}
-                  onDragEnd={handleDragEnd}
                   className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
                     draggedSectionIndex === index
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 opacity-70'
@@ -934,8 +978,12 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <div
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragEnd={handleDragEnd}
                       className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                       title="Drag to reorder"
+                      aria-hidden="true"
                     >
                       <GripVertical className="w-4 h-4" />
                     </div>
@@ -996,6 +1044,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                       title={isVisible ? 'Visible on resume' : 'Hidden from resume'}
+                      aria-label={`Toggle visibility of ${secId} section`}
+                      aria-pressed={isVisible}
                     >
                       {isVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </button>
@@ -1005,6 +1055,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         onClick={() => removeCustomSection(secId)}
                         className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition-colors cursor-pointer"
                         title="Delete custom section"
+                        aria-label={`Delete custom section ${secId}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1021,7 +1072,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       {activeTab === 'content' && (
         <div className="flex flex-col flex-1 overflow-hidden relative">
           {/* Subtabs for content categories */}
-          <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto p-1 bg-white dark:bg-slate-900 gap-1 text-xs shrink-0">
+          <div role="tablist" aria-label="Resume content sections" className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto p-1 bg-white dark:bg-slate-900 gap-1 text-xs shrink-0">
             {[
               { id: 'personal', label: 'Personal', icon: User },
               { id: 'experience', label: `Experience (${experience.length})`, icon: Briefcase },
@@ -1036,6 +1087,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               return (
                 <button
                   key={tab.id}
+                  role="tab"
+                  aria-selected={contentSubTab === tab.id}
                   onClick={() => setContentSubTab(tab.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium whitespace-nowrap transition-colors cursor-pointer ${
                     contentSubTab === tab.id
@@ -1057,10 +1110,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1001" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Full Name *
                     </label>
-                    <input
+                    <input id="field-1001"
                       type="text"
                       value={personal.fullName}
                       onChange={(e) => updatePersonal('fullName', e.target.value)}
@@ -1071,10 +1124,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1002" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Target Job Title / Headline *
                     </label>
-                    <input
+                    <input id="field-1002"
                       type="text"
                       value={personal.jobTitle}
                       onChange={(e) => updatePersonal('jobTitle', e.target.value)}
@@ -1085,10 +1138,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1003" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Email Address *
                     </label>
-                    <input
+                    <input id="field-1003"
                       type="email"
                       value={personal.email}
                       onChange={(e) => updatePersonal('email', e.target.value)}
@@ -1100,10 +1153,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1004" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Phone Number *
                     </label>
-                    <input
+                    <input id="field-1004"
                       type="tel"
                       value={personal.phone}
                       onChange={(e) => updatePersonal('phone', e.target.value)}
@@ -1121,10 +1174,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1005" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Location / Region *
                     </label>
-                    <input
+                    <input id="field-1005"
                       type="text"
                       value={personal.location}
                       onChange={(e) => updatePersonal('location', e.target.value)}
@@ -1134,10 +1187,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1006" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Website / Portfolio
                     </label>
-                    <input
+                    <input id="field-1006"
                       type="text"
                       value={personal.website}
                       onChange={(e) => updatePersonal('website', e.target.value)}
@@ -1149,10 +1202,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1007" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       LinkedIn URL or Username
                     </label>
-                    <input
+                    <input id="field-1007"
                       type="text"
                       value={personal.linkedin}
                       onChange={(e) => updatePersonal('linkedin', e.target.value)}
@@ -1164,10 +1217,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1008" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       GitHub URL or Username
                     </label>
-                    <input
+                    <input id="field-1008"
                       type="text"
                       value={personal.github}
                       onChange={(e) => updatePersonal('github', e.target.value)}
@@ -1181,7 +1234,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <label htmlFor="field-summary" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                       Executive Summary / Bio
                     </label>
                     <span className="text-[11px] text-slate-400">
@@ -1189,6 +1242,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     </span>
                   </div>
                   <textarea
+                    id="field-summary"
                     rows={4}
                     value={personal.summary}
                     onChange={(e) => updatePersonal('summary', e.target.value)}
@@ -1228,10 +1282,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                 {styles.showPhoto && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1009" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Photo Image URL
                     </label>
-                    <input
+                    <input id="field-1009"
                       type="url"
                       value={personal.photoUrl || ''}
                       onChange={(e) => updatePersonal('photoUrl', e.target.value)}
@@ -1276,6 +1330,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       <button
                         onClick={() => removeExperience(job.id)}
                         className="text-rose-500 hover:text-rose-700 text-xs flex items-center gap-1 cursor-pointer"
+                        aria-label={`Delete role at ${job.company || 'company'}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>Delete</span>
@@ -1284,10 +1339,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Company Name
-                        </label>
-                        <input
+                        <label htmlFor="field-1010" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Company Name
+                    </label>
+                        <input id="field-1010"
                           type="text"
                           value={job.company}
                           onChange={(e) => updateExperience(job.id, { company: e.target.value })}
@@ -1295,10 +1350,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Job Title / Role
-                        </label>
-                        <input
+                        <label htmlFor="field-1011" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Job Title / Role
+                    </label>
+                        <input id="field-1011"
                           type="text"
                           value={job.position}
                           onChange={(e) => updateExperience(job.id, { position: e.target.value })}
@@ -1306,10 +1361,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Location
-                        </label>
-                        <input
+                        <label htmlFor="field-1012" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Location
+                    </label>
+                        <input id="field-1012"
                           type="text"
                           value={job.location}
                           onChange={(e) => updateExperience(job.id, { location: e.target.value })}
@@ -1319,10 +1374,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       </div>
                       <div className="flex gap-2">
                         <div className="flex-1">
-                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                            Start Date
-                          </label>
-                          <input
+                          <label htmlFor="field-1013" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Start Date
+                    </label>
+                          <input id="field-1013"
                             type="text"
                             value={job.startDate}
                             onChange={(e) => updateExperience(job.id, { startDate: e.target.value })}
@@ -1331,10 +1386,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           />
                         </div>
                         <div className="flex-1">
-                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                            End Date
-                          </label>
-                          <input
+                          <label htmlFor="field-1014" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      End Date
+                    </label>
+                          <input id="field-1014"
                             type="text"
                             value={job.endDate}
                             disabled={job.current}
@@ -1397,6 +1452,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                               }}
                               className="text-slate-400 hover:text-rose-500 cursor-pointer p-1"
                               title="Remove bullet"
+                              aria-label={`Remove bullet ${bIdx + 1}`}
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -1410,14 +1466,11 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
                         Technologies / Tools (comma-separated)
                       </label>
-                      <input
-                        type="text"
-                        value={job.technologies ? job.technologies.join(', ') : ''}
-                        onChange={(e) => {
-                          const tags = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
-                          updateExperience(job.id, { technologies: tags });
-                        }}
+                      <CommaSeparatedInput
+                        items={job.technologies}
+                        onCommit={(tags) => updateExperience(job.id, { technologies: tags })}
                         placeholder="e.g. SAP, Power BI, Microsoft Excel"
+                        aria-label="Technologies and tools, comma separated"
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -1453,6 +1506,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       <button
                         onClick={() => removeEducation(edu.id)}
                         className="text-rose-500 hover:text-rose-700 text-xs flex items-center gap-1 cursor-pointer"
+                        aria-label={`Delete education at ${edu.institution || 'institution'}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Delete
                       </button>
@@ -1460,10 +1514,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Institution / University
-                        </label>
-                        <input
+                        <label htmlFor="field-1015" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Institution / University
+                    </label>
+                        <input id="field-1015"
                           type="text"
                           value={edu.institution}
                           onChange={(e) => updateEducation(edu.id, { institution: e.target.value })}
@@ -1471,10 +1525,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Degree & Major
-                        </label>
-                        <input
+                        <label htmlFor="field-1016" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Degree & Major
+                    </label>
+                        <input id="field-1016"
                           type="text"
                           value={edu.degree}
                           onChange={(e) => updateEducation(edu.id, { degree: e.target.value })}
@@ -1483,10 +1537,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Dates (or Graduation Year)
-                        </label>
-                        <input
+                        <label htmlFor="field-1017" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Dates (or Graduation Year)
+                    </label>
+                        <input id="field-1017"
                           type="text"
                           value={edu.endDate}
                           onChange={(e) => updateEducation(edu.id, { endDate: e.target.value })}
@@ -1495,10 +1549,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          GPA / Academic Honors
-                        </label>
-                        <input
+                        <label htmlFor="field-1018" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      GPA / Academic Honors
+                    </label>
+                        <input id="field-1018"
                           type="text"
                           value={edu.honors || ''}
                           onChange={(e) => updateEducation(edu.id, { honors: e.target.value })}
@@ -1542,6 +1596,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       <button
                         onClick={() => removeSkillCategory(cat.id)}
                         className="text-rose-500 hover:text-rose-700 text-xs cursor-pointer"
+                        aria-label={`Remove skill category ${cat.categoryName || ''}`.trim()}
+                        title="Remove skill category"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1551,13 +1607,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       <label className="block text-[11px] text-slate-500 mb-1">
                         Skills (comma-separated):
                       </label>
-                      <input
-                        type="text"
-                        value={cat.skills.join(', ')}
-                        onChange={(e) => {
-                          const list = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
-                          updateSkillCategory(cat.id, { skills: list });
-                        }}
+                      <CommaSeparatedInput
+                        items={cat.skills}
+                        onCommit={(list) => updateSkillCategory(cat.id, { skills: list })}
+                        aria-label="Skills, comma separated"
                         className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                     </div>
@@ -1593,6 +1646,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       <button
                         onClick={() => removeProject(proj.id)}
                         className="text-rose-500 hover:text-rose-700 text-xs cursor-pointer"
+                        aria-label={`Remove project ${proj.title || ''}`.trim()}
+                        title="Remove project"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1600,10 +1655,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Project Title
-                        </label>
-                        <input
+                        <label htmlFor="field-1019" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Project Title
+                    </label>
+                        <input id="field-1019"
                           type="text"
                           value={proj.title}
                           onChange={(e) => updateProject(proj.id, { title: e.target.value })}
@@ -1611,10 +1666,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Role / Contribution
-                        </label>
-                        <input
+                        <label htmlFor="field-1020" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Role / Contribution
+                    </label>
+                        <input id="field-1020"
                           type="text"
                           value={proj.role || ''}
                           onChange={(e) => updateProject(proj.id, { role: e.target.value })}
@@ -1623,10 +1678,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Project URL / Demo Link
-                        </label>
-                        <input
+                        <label htmlFor="field-1021" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Project URL / Demo Link
+                    </label>
+                        <input id="field-1021"
                           type="text"
                           value={proj.link || ''}
                           onChange={(e) => updateProject(proj.id, { link: e.target.value })}
@@ -1635,10 +1690,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                          Timeline / Year
-                        </label>
-                        <input
+                        <label htmlFor="field-1022" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Timeline / Year
+                    </label>
+                        <input id="field-1022"
                           type="text"
                           value={proj.date || ''}
                           onChange={(e) => updateProject(proj.id, { date: e.target.value })}
@@ -1649,10 +1704,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                        Summary Description
-                      </label>
-                      <input
+                      <label htmlFor="field-1023" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Summary Description
+                    </label>
+                      <input id="field-1023"
                         type="text"
                         value={proj.description}
                         onChange={(e) => updateProject(proj.id, { description: e.target.value })}
@@ -1691,6 +1746,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       <button
                         onClick={() => removeCertification(cert.id)}
                         className="text-rose-500 hover:text-rose-700 text-xs cursor-pointer"
+                        aria-label={`Remove certification ${cert.name || ''}`.trim()}
+                        title="Remove certification"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1801,10 +1858,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="sm:col-span-2">
-                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                            Document Title *
-                          </label>
-                          <input
+                          <label htmlFor="field-1024" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Document Title *
+                    </label>
+                          <input id="field-1024"
                             type="text"
                             value={doc.title}
                             onChange={(e) => updateDocument(doc.id, { title: e.target.value })}
@@ -1813,10 +1870,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                            Category / Document Type
-                          </label>
-                          <select
+                          <label htmlFor="field-1025" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Category / Document Type
+                    </label>
+                          <select id="field-1025"
                             value={doc.category}
                             onChange={(e) => updateDocument(doc.id, { category: e.target.value as DocumentCategory })}
                             className="w-full text-xs px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
@@ -1835,10 +1892,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                            Document / Credential ID #
-                          </label>
-                          <input
+                          <label htmlFor="field-1026" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Document / Credential ID #
+                    </label>
+                          <input id="field-1026"
                             type="text"
                             value={doc.documentNumber || ''}
                             onChange={(e) => updateDocument(doc.id, { documentNumber: e.target.value })}
@@ -1847,10 +1904,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                            Issuing Authority / Institution
-                          </label>
-                          <input
+                          <label htmlFor="field-1027" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Issuing Authority / Institution
+                    </label>
+                          <input id="field-1027"
                             type="text"
                             value={doc.issuer || ''}
                             onChange={(e) => updateDocument(doc.id, { issuer: e.target.value })}
@@ -1859,10 +1916,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                            Issue Date / Expiry
-                          </label>
-                          <input
+                          <label htmlFor="field-1028" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Issue Date / Expiry
+                    </label>
+                          <input id="field-1028"
                             type="text"
                             value={doc.issueDate || ''}
                             onChange={(e) => updateDocument(doc.id, { issueDate: e.target.value })}
@@ -2003,6 +2060,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                   });
                                 }}
                                 className="text-rose-500 text-xs cursor-pointer"
+                                aria-label={`Delete item ${item.title || ''}`}
+                                title="Delete item"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -2153,14 +2212,17 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {filteredTemplates.map((tmpl) => {
                 const isSelected = styles.template === tmpl.id;
                 return (
-                  <div
+                  <button
                     key={tmpl.id}
+                    type="button"
                     onClick={() =>
                       onChange({
                         ...resume,
                         styles: { ...styles, template: tmpl.id },
                       })
                     }
+                    aria-pressed={isSelected}
+                    aria-label={`Apply template ${tmpl.name}`}
                     className={`group relative rounded-xl border-2 p-3 text-left transition-all cursor-pointer flex flex-col ${
                       isSelected
                         ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 ring-2 ring-blue-500/20 shadow-md'
@@ -2267,7 +2329,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         {tmpl.desc}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -2435,6 +2497,30 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Attribution footer toggle */}
+            <div className="pt-1 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <label htmlFor="showAttributionToggle" className="text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+                  Include “Engineered by” footer
+                </label>
+                <div className="text-[11px] text-slate-500">
+                  Adds a small credit line at the bottom of the printed/exported document. Turn off to keep the page clean for applications.
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                id="showAttributionToggle"
+                checked={styles.showAttribution !== false}
+                onChange={(e) =>
+                  onChange({
+                    ...resume,
+                    styles: { ...styles, showAttribution: e.target.checked },
+                  })
+                }
+                className="w-4 h-4 text-blue-600 rounded cursor-pointer shrink-0"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -2447,8 +2533,13 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="add-entry-title"
+            onClick={() => setIsAddPromptOpen(false)}
           >
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] my-auto">
+            <div
+              ref={addPromptPanelRef}
+              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Modal Header */}
               <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex items-start sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-950/50">
                 <div className="flex items-center gap-2 min-w-0">
@@ -2517,10 +2608,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Company Name *
-                      </label>
-                      <input
+                      <label htmlFor="field-1029" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Company Name *
+                    </label>
+                      <input id="field-1029"
                         type="text"
                         required
                         value={addExpData.company}
@@ -2530,10 +2621,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Job Title / Position *
-                      </label>
-                      <input
+                      <label htmlFor="field-1030" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Job Title / Position *
+                    </label>
+                      <input id="field-1030"
                         type="text"
                         required
                         value={addExpData.position}
@@ -2546,10 +2637,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Location
-                      </label>
-                      <input
+                      <label htmlFor="field-1031" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Location
+                    </label>
+                      <input id="field-1031"
                         type="text"
                         value={addExpData.location}
                         onChange={(e) => setAddExpData({ ...addExpData, location: e.target.value })}
@@ -2558,10 +2649,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Start Date
-                      </label>
-                      <input
+                      <label htmlFor="field-1032" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Start Date
+                    </label>
+                      <input id="field-1032"
                         type="text"
                         value={addExpData.startDate}
                         onChange={(e) => setAddExpData({ ...addExpData, startDate: e.target.value })}
@@ -2570,10 +2661,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        End Date
-                      </label>
-                      <input
+                      <label htmlFor="field-1033" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      End Date
+                    </label>
+                      <input id="field-1033"
                         type="text"
                         value={addExpData.endDate}
                         disabled={addExpData.current}
@@ -2598,10 +2689,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1034" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Key Achievement Bullet Point
                     </label>
-                    <textarea
+                    <textarea id="field-1034"
                       rows={2}
                       value={addExpData.bullet1}
                       onChange={(e) => setAddExpData({ ...addExpData, bullet1: e.target.value })}
@@ -2611,10 +2702,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1035" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Technologies / Tools (comma-separated)
                     </label>
-                    <input
+                    <input id="field-1035"
                       type="text"
                       value={addExpData.technologies}
                       onChange={(e) => setAddExpData({ ...addExpData, technologies: e.target.value })}
@@ -2629,10 +2720,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {addCategory === 'education' && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1036" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Institution / University *
                     </label>
-                    <input
+                    <input id="field-1036"
                       type="text"
                       required
                       value={addEduData.institution}
@@ -2644,10 +2735,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Degree *
-                      </label>
-                      <input
+                      <label htmlFor="field-1037" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Degree *
+                    </label>
+                      <input id="field-1037"
                         type="text"
                         required
                         value={addEduData.degree}
@@ -2657,10 +2748,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Field of Study
-                      </label>
-                      <input
+                      <label htmlFor="field-1038" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Field of Study
+                    </label>
+                      <input id="field-1038"
                         type="text"
                         value={addEduData.fieldOfStudy}
                         onChange={(e) => setAddEduData({ ...addEduData, fieldOfStudy: e.target.value })}
@@ -2672,10 +2763,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Graduation Year / Dates
-                      </label>
-                      <input
+                      <label htmlFor="field-1039" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Graduation Year / Dates
+                    </label>
+                      <input id="field-1039"
                         type="text"
                         value={addEduData.endDate}
                         onChange={(e) => setAddEduData({ ...addEduData, endDate: e.target.value })}
@@ -2684,10 +2775,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        GPA / Honors
-                      </label>
-                      <input
+                      <label htmlFor="field-1040" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      GPA / Honors
+                    </label>
+                      <input id="field-1040"
                         type="text"
                         value={addEduData.honors}
                         onChange={(e) => setAddEduData({ ...addEduData, honors: e.target.value })}
@@ -2703,10 +2794,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {addCategory === 'skills' && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1041" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Skill Category Name *
                     </label>
-                    <input
+                    <input id="field-1041"
                       type="text"
                       required
                       value={addSkillData.categoryName}
@@ -2716,10 +2807,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1042" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Skills (comma-separated) *
                     </label>
-                    <textarea
+                    <textarea id="field-1042"
                       rows={3}
                       required
                       value={addSkillData.skillsString}
@@ -2736,10 +2827,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Project Name *
-                      </label>
-                      <input
+                      <label htmlFor="field-1043" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Project Name *
+                    </label>
+                      <input id="field-1043"
                         type="text"
                         required
                         value={addProjData.title}
@@ -2749,10 +2840,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Role / Contribution
-                      </label>
-                      <input
+                      <label htmlFor="field-1044" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Role / Contribution
+                    </label>
+                      <input id="field-1044"
                         type="text"
                         value={addProjData.role}
                         onChange={(e) => setAddProjData({ ...addProjData, role: e.target.value })}
@@ -2763,10 +2854,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1045" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Project Link / GitHub URL
                     </label>
-                    <input
+                    <input id="field-1045"
                       type="text"
                       value={addProjData.link}
                       onChange={(e) => setAddProjData({ ...addProjData, link: e.target.value })}
@@ -2776,10 +2867,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1046" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Highlights / Impact Bullet
                     </label>
-                    <textarea
+                    <textarea id="field-1046"
                       rows={2}
                       value={addProjData.bullet1}
                       onChange={(e) => setAddProjData({ ...addProjData, bullet1: e.target.value })}
@@ -2794,10 +2885,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {addCategory === 'certifications' && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1047" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Certification Name *
                     </label>
-                    <input
+                    <input id="field-1047"
                       type="text"
                       required
                       value={addCertData.name}
@@ -2808,10 +2899,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Issuing Authority
-                      </label>
-                      <input
+                      <label htmlFor="field-1048" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Issuing Authority
+                    </label>
+                      <input id="field-1048"
                         type="text"
                         value={addCertData.issuer}
                         onChange={(e) => setAddCertData({ ...addCertData, issuer: e.target.value })}
@@ -2820,10 +2911,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Issue Year / Date
-                      </label>
-                      <input
+                      <label htmlFor="field-1049" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Issue Year / Date
+                    </label>
+                      <input id="field-1049"
                         type="text"
                         value={addCertData.issueDate}
                         onChange={(e) => setAddCertData({ ...addCertData, issueDate: e.target.value })}
@@ -2839,10 +2930,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {addCategory === 'documents' && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1050" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Document Title *
                     </label>
-                    <input
+                    <input id="field-1050"
                       type="text"
                       required
                       value={addDocData.title}
@@ -2854,10 +2945,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Category / Document Type *
-                      </label>
-                      <select
+                      <label htmlFor="field-1051" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Category / Document Type *
+                    </label>
+                      <select id="field-1051"
                         value={addDocData.category}
                         onChange={(e) => setAddDocData({ ...addDocData, category: e.target.value as DocumentCategory })}
                         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
@@ -2873,10 +2964,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Document / Credential ID #
-                      </label>
-                      <input
+                      <label htmlFor="field-1052" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Document / Credential ID #
+                    </label>
+                      <input id="field-1052"
                         type="text"
                         value={addDocData.documentNumber}
                         onChange={(e) => setAddDocData({ ...addDocData, documentNumber: e.target.value })}
@@ -2888,10 +2979,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Issuing Authority
-                      </label>
-                      <input
+                      <label htmlFor="field-1053" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Issuing Authority
+                    </label>
+                      <input id="field-1053"
                         type="text"
                         value={addDocData.issuer}
                         onChange={(e) => setAddDocData({ ...addDocData, issuer: e.target.value })}
@@ -2900,10 +2991,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Issue Date / Validity
-                      </label>
-                      <input
+                      <label htmlFor="field-1054" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Issue Date / Validity
+                    </label>
+                      <input id="field-1054"
                         type="text"
                         value={addDocData.issueDate}
                         onChange={(e) => setAddDocData({ ...addDocData, issueDate: e.target.value })}
@@ -2972,10 +3063,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               {addCategory === 'custom' && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1055" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Custom Section Name *
                     </label>
-                    <input
+                    <input id="field-1055"
                       type="text"
                       required
                       value={addCustomData.sectionTitle}
@@ -2985,10 +3076,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="field-1056" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Entry Title *
                     </label>
-                    <input
+                    <input id="field-1056"
                       type="text"
                       required
                       value={addCustomData.itemTitle}
@@ -2999,10 +3090,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Subtitle / Organization
-                      </label>
-                      <input
+                      <label htmlFor="field-1057" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Subtitle / Organization
+                    </label>
+                      <input id="field-1057"
                         type="text"
                         value={addCustomData.itemSubtitle}
                         onChange={(e) => setAddCustomData({ ...addCustomData, itemSubtitle: e.target.value })}
@@ -3011,10 +3102,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Date / Year
-                      </label>
-                      <input
+                      <label htmlFor="field-1058" className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Date / Year
+                    </label>
+                      <input id="field-1058"
                         type="text"
                         value={addCustomData.itemDate}
                         onChange={(e) => setAddCustomData({ ...addCustomData, itemDate: e.target.value })}
